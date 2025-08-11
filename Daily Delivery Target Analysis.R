@@ -13,9 +13,7 @@
 #                                                                              #
 ################################################################################
 
-################################################################################
-#                                  Summary                                     #
-################################################################################
+# Summary ----------------------------------------------------------------
 
 # Objective: 
 # To determine a realistic and accurate daily delivery pace for each city—Freetown,
@@ -69,8 +67,7 @@
 #                             Makeni 2025 Delivery Data                        #
 ################################################################################
 
-
-# Loading the necessary packages
+# Loading the necessary package ------------------------------------------
 library(tidyverse)
 library(janitor)
 library(readr)
@@ -151,15 +148,6 @@ ggsave("makeni_2025_avg_daily_deliveries.png")
 #                           Kenema 2025 Delivery Data                          #
 ################################################################################
 
-
-# Loading the necessary packages
-library(tidyverse)
-library(janitor)
-library(readr)
-library (skimr)
-library(ggthemes)
-library(readxl)
-
 # Importing the data
 kcc_2025 <- read_excel("kcc_2025.xlsx")
 View(kcc_2025)
@@ -229,94 +217,3 @@ ggplot(daily_avg_kcc, aes(x = date, y = average_accurate_daily_deliveries)) +
     y = "Average Daily Accurate Deliveries"
   ) 
 ggsave("kenema_2025_avg_daily_deliveries.png")
-
-################################################################################
-#                           Kenema 2024 Delivery Data                          #
-################################################################################
-
-
-# Loading the necessary packages
-library(tidyverse)
-library(janitor)
-library(readr)
-library (skimr)
-library(ggthemes)
-library(readxl)
-
-  
-################################################################################
-#                           Freetown 2025 Delivery Data                        #
-################################################################################
-
-
-# Loading the necessary packages
-library(tidyverse)
-library(janitor)
-library(readr)
-library (skimr)
-library(ggthemes)
-library(readxl)
-
-
-################################################################################
-#                           Freetown 2024 Delivery Data                        #
-################################################################################
-
-
-# Loading the necessary packages
-library(tidyverse)
-library(janitor)
-library(readr)
-library (skimr)
-library(ggthemes)
-library(readxl)
-
-################################################################################
-#                           Freetown 2023 Delivery Data                        #
-################################################################################
-
-
-# Loading the necessary packages
-library(tidyverse)
-library(janitor)
-library(readr)
-library (skimr)
-library(ggthemes)
-library(readxl)
-
-################################################################################
-#                           Freetown 2022 Delivery Data                        #
-################################################################################
-
-
-# Loading the necessary packages
-library(tidyverse)
-library(janitor)
-library(readr)
-library (skimr)
-library(ggthemes)
-library(readxl)
-
-################################################################################
-#                           Freetown 2021 Delivery Data                        #
-################################################################################
-
-
-# Loading the necessary packages
-library(tidyverse)
-library(janitor)
-library(readr)
-library (skimr)
-library(ggthemes)
-library(readxl)
-
-
-
-
-
-
-
-
-
-
-
