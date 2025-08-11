@@ -70,29 +70,32 @@
 # Loading the necessary package ------------------------------------------
 library(tidyverse)
 library(janitor)
-library(readr)
-library (skimr)
+library(skimr)
 library(ggthemes)
 library(readxl)
 
 # Importing the data
-mcc_2025 <- read_excel("mcc_2025.xlsx")
-View(mcc_2025)
+# mcc_2025 <- read_excel("mcc_2025.xlsx")
+mcc_2025 <- read_csv("mcc_2025.csv") 
+names(mcc_2025)
 
 # Cleaning the data
-mcc_2025 <- mcc_2025 |> janitor::clean_names() # Fixing non-syntactic column names
-View(mcc_2025) # Viewing the cleaned dataset again to confirm changes
+mcc_2025 <- mcc_2025 |> clean_names() # Fixing non-syntactic column names
+names(mcc_2025) # Viewing the cleaned dataset again to confirm changes
 
 # Understanding the data
-mcc_2025 # Looking at a summary of the dataset in the console
+# View(mcc_2025) # Looking at a summary of the dataset in the console
 glimpse (mcc_2025) # Looking at a concise glimpse of dataset structure
 skim(mcc_2025) # Looking at a detailed summary of the dataset
 
-
 # Transforming the data: Looking at Unfiltered vs. Filtered Data
-mcc_2025 |> # Unfiltered data; analyzing all data even inaccurate deliveries
-  mutate(date = as.Date(delivered_on, format = "%Y-%m-%d")) |> # Creating a new column 'date' by converting 'delivered_on' string variable into a usable format
-  count(date, mobile_user_a_username, name = "enum_acc_daily_deliv") |> # Counting number of deliveries for each enumerator on each date
+
+# Unfilitered Makeni Data ------------------------------------------------
+mcc_2025_unfiltered <- mcc_2025 |> # Unfiltered data; analyzing all data even inaccurate deliveries
+  mutate(date = as_date(delivered_on)) |> # Creating a new column 'date' by converting 'delivered_on' string variable into a usable format
+  count(date, mobile_user_username, name = "enum_acc_daily_deliv") # Counting number of deliveries for each enumerator on each date
+
+mcc_2025_unfiltered_comb_daily_avg <- mcc_2025_unfiltered |> 
   group_by(date) |> # Grouping the data by date (aggregating across enumerators)
   summarise(avg_acc_daily_deliv = ceiling(mean(enum_acc_daily_deliv)), .groups = "drop") |> # Calculating the average of daily deliveries across all enumerators, rounding up with ceiling()
   mutate( # Removing outliers using the IQR method
@@ -103,14 +106,20 @@ mcc_2025 |> # Unfiltered data; analyzing all data even inaccurate deliveries
   filter(
     avg_acc_daily_deliv >= Q1 - 1.5 * IQR,
     avg_acc_daily_deliv <= Q3 + 1.5 * IQR
-  ) |>
-  summarise(mcc_2025_avg = mean(avg_acc_daily_deliv)) |> # Calculating the mean of daily delivery across the entire delivery period from the filtered data (outliers removed)
-  view() # Displaying the result which is 32.19 deliveries.
+  )
 
-mcc_2025 |> # Filtered data; analyzing only accurate deliveries 
+(mcc_2025_unfiltered_avg <- mcc_2025_unfiltered_comb_daily_avg |> 
+  summarise(mcc_2025_avg = mean(avg_acc_daily_deliv)) |> # Calculating the mean of daily delivery across the entire delivery period from the filtered data (outliers removed)
+   # Displaying the result which is 32.19 deliveries.
+  pull(mcc_2025_avg))
+
+# Filtered Makeni Data ---------------------------------------------------
+mcc_2025_filtered <- mcc_2025 |> # Filtered data; analyzing only accurate deliveries 
   filter(distance <= 80) |> # Filtering rows where delivery 'distance' is 80 meters or less to keep only accurate deliveries
-  mutate(date = as.Date(delivered_on, format = "%Y-%m-%d")) |>   
-  count(date, mobile_user_a_username, name = "enum_acc_daily_deliv") |> 
+  mutate(date = as_date(delivered_on)) |>   
+  count(date, mobile_user_username, name = "enum_acc_daily_deliv")
+
+mcc_2025_filtered_comb_daily_avg <- mcc_2025_filtered |>
   group_by(date) |> 
   summarise(avg_acc_daily_deliv = ceiling(mean(enum_acc_daily_deliv)), .groups = "drop") |> 
   mutate( 
@@ -121,28 +130,28 @@ mcc_2025 |> # Filtered data; analyzing only accurate deliveries
   filter(
     avg_acc_daily_deliv >= Q1 - 1.5 * IQR,
     avg_acc_daily_deliv <= Q3 + 1.5 * IQR
-  ) |>
-  summarise(mcc_2025_avg = mean(avg_acc_daily_deliv)) |>   
-  view() # Displaying the result which is 31.75 deliveries.
+  )
 
-((32.19-31.75)/32.19)*100 # Calculating the percentage difference between average of all daily deliveries vs. only accurate daily deliveries
+(mcc_2025_filtered_avg <- mcc_2025_filtered_comb_daily_avg |> 
+  summarise(mcc_2025_avg = mean(avg_acc_daily_deliv)) |> 
+  pull(mcc_2025_avg))  # Displaying the result which is 31.75 deliveries.
 
-# Visualizing the data
-daily_avg_mcc <- mcc_2025 |> # Preparing data for visualization
-  filter(distance <= 80) |>
-  mutate(date = as.Date(delivered_on, format = "%Y-%m-%d")) |>
-  count(date, mobile_user_a_username, name = "enum_accurate_daily_deliveries") |>
-  group_by(date) |>
-  summarise(average_accurate_daily_deliveries = ceiling(mean(enum_accurate_daily_deliveries)), .groups = "drop")
-ggplot(daily_avg_mcc, aes(x = date, y = average_accurate_daily_deliveries)) + # Plotting the average accurate daily deliveries over time using ggplot2 (time-series plot)
-  geom_line(color = "blue", linewidth = 1) +
-  geom_point(color = "black", size = 2) +
-  labs(
-    title = "Average Accurate Daily Deliveries Over Time",
-    x = "Date",
-    y = "Average Daily Accurate Deliveries"
-  ) 
-ggsave("makeni_2025_avg_daily_deliveries.png")
+# Calculating the percentage difference between average of all daily deliveries vs. only accurate daily deliveries
+((mcc_2025_unfiltered_avg - mcc_2025_filtered_avg) / mcc_2025_unfiltered_avg)*100
+
+
+# Visualizing the data ---------------------------------------------------
+mcc_2025_filtered_comb_daily_avg |> 
+  rename(average_accurate_daily_deliveries = avg_acc_daily_deliv) |> 
+  ggplot(aes(x = date, y = average_accurate_daily_deliveries)) + # Plotting the average accurate daily deliveries over time using ggplot2 (time-series plot)
+    geom_line(color = "blue", linewidth = 1) +
+    geom_point(color = "black", size = 2) +
+    labs(
+      title = "Average Accurate Daily Deliveries Over Time",
+      x = "Date",
+      y = "Average Daily Accurate Deliveries"
+    ) 
+  ggsave("makeni_2025_avg_daily_deliveries.png")
 
 ################################################################################
 #                           Kenema 2025 Delivery Data                          #
