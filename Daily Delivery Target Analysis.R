@@ -46,16 +46,6 @@
 
 # Key Findings:
 
-#1. When comparing all deliveries to only accurate deliveries there is very 
-#   minimal difference with the all deliveries average being only slightly higher than the accurate one.
-#   a. For 2025:
-#       Makeni: 1.37% difference (32.19 vs. 31.75)
-#       Kenema: 1.14% difference (41.37 vs. 40.90)
-
-#2. For 2025:
-#   a. Makeni's average accurate deliver pace was 31 deliveries daily.
-#   b. Kenema's average accurate delivery pace was 40 deliveries daily.
-
 ################################################################################
 
 
@@ -64,8 +54,6 @@ library(tidyverse)
 library(janitor)
 library(skimr)
 library(ggthemes)
-
-
 
 ################################################################################
 #                           Makeni 2025 Delivery Data  (new)                   #
@@ -139,7 +127,6 @@ makeni_comparison_2025 <- tibble(
   )
 
 # Looking at How Time of Day & Day of Week Affects Delivery Pace----------------
-
 mcc_2025_tod_dow <- mcc_2025 |> 
   mutate(
     date = as_date(delivered_on), # convert to proper date format
@@ -150,8 +137,10 @@ mcc_2025_tod_dow <- mcc_2025 |>
       hour >= 9  & hour < 12 ~ "09–11", # mid-morning shift
       hour >= 12 & hour < 15 ~ "12–14", # early afternoon shift
       hour >= 15 & hour < 18 ~ "15–17", # late afternoon shift
-      TRUE ~ "Other (Night/Early Morning)" # unusual hours 
-      
+      TRUE ~ "Other (Night/Early Morning)" # unusual hours
+    )
+  )
+
 # Calculate average delivery pace by time of day
 mcc_2025_delivery_pace_tod <- mcc_2025_tod_dow |> 
   count(date, tod, mobile_user_username, name = "enum_deliv") |> # count deliveries per enumerator per time of day (tod)
@@ -160,7 +149,7 @@ mcc_2025_delivery_pace_tod <- mcc_2025_tod_dow |>
     avg_daily_pace_tod = mean(enum_deliv),
     .groups = "drop" 
   )
-      
+
 # Calculate average delivery pace by day of week
 mcc_2025_delivery_pace_dow <- mcc_2025_tod_dow |> 
   count(date, dow, mobile_user_username, name = "enum_deliv") |> # count deliveries per enumerator per day of the week (dow)
@@ -169,7 +158,7 @@ mcc_2025_delivery_pace_dow <- mcc_2025_tod_dow |>
     avg_daily_pace_dow = mean(enum_deliv),
     .groups = "drop" 
   )
-      
+
 # Calculate average delivery pace by both day of week and time of day
 mcc_2025_delivery_pace_tod_dow <- mcc_2025_tod_dow |> 
   count(date, dow, tod, mobile_user_username, name = "enum_deliv") |> 
@@ -190,8 +179,8 @@ mcc_2025_unfiltered |>
     title = "Makeni 2025: Average Accurate Daily Deliveries", 
     x = "Date",                            
     y = "Average Accurate Daily Deliveries"
-  ) +
-  ggsave("makeni_2025_timeseries.png")     
+  ) 
+ggsave("makeni_2025_timeseries.png")     
       
 # (b) Histogram + density curve (distribution shape)
 mcc_2025_filtered |> 
@@ -203,11 +192,11 @@ mcc_2025_filtered |>
     title = "Distribution of Daily Delivery Pace (Makeni 2025)", 
     x = "Deliveries per Day",              
     y = "Density"                         
-  ) +
-  ggsave("makeni_2025_distribution.png")  
+  )
+ggsave("makeni_2025_distribution.png")  
       
 # (c) Delivery pace by day of week and time of day bracket
-delivery_pace_tod_dow |>                
+mcc_2025_delivery_pace_tod_dow |>                
   ggplot(aes(x = dow, y = avg_daily_pace_tod_dow, fill = tod)) + 
   geom_col(position = "dodge") +        
   labs(                                 
@@ -215,8 +204,8 @@ delivery_pace_tod_dow |>
     x = "Day of the Week",              
     y = "Average Deliveries per Enumerator", 
     fill = "Time of Day (3-hour brackets)" 
-  ) +
-  ggsave("makeni_2025_pace_dow_tod.png") 
+  )
+ggsave("makeni_2025_pace_dow_tod.png") 
 
 
 ################################################################################
@@ -342,8 +331,8 @@ kcc_2025_filtered |>
         title = "Kenema 2025: Average Accurate Daily Deliveries",
         x = "Date",
         y = "Average Accurate Daily Deliveries"
-      ) +
-    ggsave("kenema_2025_timeseries.png")
+      ) 
+ggsave("kenema_2025_timeseries.png")
     
     
 # (b) Histogram + density curve (distribution shape)
@@ -356,12 +345,12 @@ kcc_2025_filtered |>
         title = "Distribution of Daily Delivery Pace (Kenema 2025)",
         x = "Deliveries per Day",
         y = "Density"
-      ) +
-    ggsave("kenema_2025_distribution.png")
+      ) 
+ggsave("kenema_2025_distribution.png")
     
     
 # (c) Delivery pace by day of week and time of day bracket
-delivery_pace_tod_dow |> 
+kcc_2025_delivery_pace_tod_dow |> 
       ggplot(aes(x = dow, y = avg_daily_pace_tod_dow, fill = tod)) +
       geom_col(position = "dodge") +
       labs(
@@ -369,8 +358,8 @@ delivery_pace_tod_dow |>
         x = "Day of the Week",
         y = "Average Deliveries per Enumerator",
         fill = "Time of Day (3-hour brackets)"
-      ) +
-    ggsave("kenema_2025_pace_dow_tod.png")
+      ) 
+ggsave("kenema_2025_pace_dow_tod.png")
 
     
 ################################################################################
@@ -495,24 +484,23 @@ kcc_2024_filtered |>
   ggplot(aes(x = date, y = daily_avg)) +
   geom_line(color = "blue", linewidth = 1) +
   geom_point(size = 1.5, color = "black") +
-  labs(title = "Average Accurate Daily Deliveries (KCC 2024)", x = "Date", y = "Average Deliveries") +
-  theme_minimal()
-  ggsave("kenema_2024_timeseries.png")
+  labs(title = "Average Accurate Daily Deliveries (KCC 2024)", x = "Date", y = "Average Deliveries") 
+ggsave("kenema_2024_timeseries.png")
 
 # (b) Histogram + density curve
 kcc_2024_filtered |> 
   ggplot(aes(x = daily_avg)) +
   geom_histogram(aes(y = after_stat(density)), bins = 15, fill = "pink", alpha = 0.6, color = "black") +
   geom_density(color = "red", linewidth = 1) +
-  labs(title = "Distribution of Daily Delivery Pace (KCC 2024)", x = "Deliveries per Day", y = "Density") +
-  ggsave("kenema_2024_distribution.png")
+  labs(title = "Distribution of Daily Delivery Pace (KCC 2024)", x = "Deliveries per Day", y = "Density") 
+ggsave("kenema_2024_distribution.png")
 
 # (c) Delivery pace by day of week & time of day
-delivery_pace_tod_dow |> 
+kcc_2024_delivery_pace_tod_dow |> 
   ggplot(aes(x = dow, y = avg_daily_pace_tod_dow, fill = tod)) +
   geom_col(position = "dodge") +
   labs(title = "Delivery Pace by Day of Week & Time of Day (KCC 2024)",
-       x = "Day of the Week", y = "Average Deliveries per Enumerator", fill = "Time of Day") +
+       x = "Day of the Week", y = "Average Deliveries per Enumerator", fill = "Time of Day") 
 ggsave("kenema_2024_pace_dow_tod.png")
 
 
@@ -641,7 +629,7 @@ fcc_2025_unfiltered |>
   ggplot(aes(x = date, y = daily_avg)) +
   geom_line(color = "blue", linewidth = 1) +
   geom_point(size = 1.5, color = "black") +
-  labs(title = "Average Accurate Daily Deliveries (FCC 2025)", x = "Date", y = "Average Deliveries") +
+  labs(title = "Average Accurate Daily Deliveries (FCC 2025)", x = "Date", y = "Average Deliveries") 
 ggsave("freetown_2025_timeseries.png")
 
 # (b) Histogram + density curve
@@ -649,16 +637,15 @@ fcc_2025_unfiltered |>
   ggplot(aes(x = daily_avg)) +
   geom_histogram(aes(y = after_stat(density)), bins = 15, fill = "pink", alpha = 0.6, color = "black") +
   geom_density(color = "red", linewidth = 1) +
-  labs(title = "Distribution of Daily Delivery Pace (FCC 2025)", x = "Deliveries per Day", y = "Density") +
-  theme_minimal()
+  labs(title = "Distribution of Daily Delivery Pace (FCC 2025)", x = "Deliveries per Day", y = "Density") 
 ggsave("freetown_2025_distribution.png")
 
 # (c) Delivery pace by day of week & time of day
-delivery_pace_tod_dow |> 
+fcc_2025_delivery_pace_tod_dow |> 
   ggplot(aes(x = dow, y = avg_daily_pace_tod_dow, fill = tod)) +
   geom_col(position = "dodge") +
   labs(title = "Delivery Pace by Day of Week & Time of Day (FCC 2025)",
-       x = "Day of the Week", y = "Average Deliveries per Enumerator", fill = "Time of Day") +
+       x = "Day of the Week", y = "Average Deliveries per Enumerator", fill = "Time of Day") 
 ggsave("freetown_2025_pace_dow_tod.png")
     
 
@@ -811,7 +798,7 @@ fcc_2024_unfiltered |>
   ggplot(aes(x = date, y = daily_avg)) +
   geom_line(color = "blue", linewidth = 1) +
   geom_point(size = 1.5, color = "black") +
-  labs(title = "Average Accurate Daily Deliveries (FCC 2024)", x = "Date", y = "Average Deliveries") +
+  labs(title = "Average Accurate Daily Deliveries (FCC 2024)", x = "Date", y = "Average Deliveries") 
 ggsave("freetown_2024_timeseries.png")
 
 # (b) Histogram + density curve
@@ -819,15 +806,15 @@ fcc_2024_unfiltered |>
   ggplot(aes(x = daily_avg)) +
   geom_histogram(aes(y = after_stat(density)), bins = 15, fill = "pink", alpha = 0.6, color = "black") +
   geom_density(color = "red", linewidth = 1) +
-  labs(title = "Distribution of Daily Delivery Pace (FCC 2024)", x = "Deliveries per Day", y = "Density") +
+  labs(title = "Distribution of Daily Delivery Pace (FCC 2024)", x = "Deliveries per Day", y = "Density") 
 ggsave("freetown_2024_distribution.png")
 
 # (c) Delivery pace by day of week & time of day
-delivery_pace_tod_dow |> 
+fcc_2024_delivery_pace_tod_dow |> 
   ggplot(aes(x = dow, y = avg_daily_pace_tod_dow, fill = tod)) +
   geom_col(position = "dodge") +
   labs(title = "Delivery Pace by Day of Week & Time of Day (FCC 2024)",
-       x = "Day of the Week", y = "Average Deliveries per Enumerator", fill = "Time of Day") +
+       x = "Day of the Week", y = "Average Deliveries per Enumerator", fill = "Time of Day") 
 ggsave("freetown_2024_pace_dow_tod.png")
 
 
@@ -979,7 +966,7 @@ fcc_2023_unfiltered |>
   ggplot(aes(x = date, y = daily_avg)) +
   geom_line(color = "blue", linewidth = 1) +
   geom_point(size = 1.5, color = "black") +
-  labs(title = "Average Accurate Daily Deliveries (FCC 2023)", x = "Date", y = "Average Deliveries") +
+  labs(title = "Average Accurate Daily Deliveries (FCC 2023)", x = "Date", y = "Average Deliveries") 
 ggsave("freetown_2023_timeseries.png")
 
 # (b) Histogram + density curve
@@ -987,15 +974,15 @@ fcc_2023_unfiltered |>
   ggplot(aes(x = daily_avg)) +
   geom_histogram(aes(y = after_stat(density)), bins = 15, fill = "pink", alpha = 0.6, color = "black") +
   geom_density(color = "red", linewidth = 1) +
-  labs(title = "Distribution of Daily Delivery Pace (FCC 2023)", x = "Deliveries per Day", y = "Density") +
+  labs(title = "Distribution of Daily Delivery Pace (FCC 2023)", x = "Deliveries per Day", y = "Density") 
 ggsave("freetown_2023_distribution.png")
 
 # (c) Delivery pace by day of week & time of day
-delivery_pace_tod_dow |> 
+fcc_2023_delivery_pace_tod_dow |> 
   ggplot(aes(x = dow, y = avg_daily_pace_tod_dow, fill = tod)) +
   geom_col(position = "dodge") +
   labs(title = "Delivery Pace by Day of Week & Time of Day (FCC 2023)",
-       x = "Day of the Week", y = "Average Deliveries per Enumerator", fill = "Time of Day") +
+       x = "Day of the Week", y = "Average Deliveries per Enumerator", fill = "Time of Day") 
 ggsave("freetown_2023_pace_dow_tod.png")
 
 
@@ -1147,7 +1134,7 @@ fcc_2022_unfiltered |>
   ggplot(aes(x = date, y = daily_avg)) +
   geom_line(color = "blue", linewidth = 1) +
   geom_point(size = 1.5, color = "black") +
-  labs(title = "Average Accurate Daily Deliveries (FCC 2022)", x = "Date", y = "Average Deliveries") +
+  labs(title = "Average Accurate Daily Deliveries (FCC 2022)", x = "Date", y = "Average Deliveries") 
 ggsave("freetown_2022_timeseries.png")
 
 # (b) Histogram + density curve
@@ -1155,15 +1142,15 @@ fcc_2022_unfiltered |>
   ggplot(aes(x = daily_avg)) +
   geom_histogram(aes(y = after_stat(density)), bins = 15, fill = "pink", alpha = 0.6, color = "black") +
   geom_density(color = "red", linewidth = 1) +
-  labs(title = "Distribution of Daily Delivery Pace (FCC 2022)", x = "Deliveries per Day", y = "Density") +
+  labs(title = "Distribution of Daily Delivery Pace (FCC 2022)", x = "Deliveries per Day", y = "Density") 
 ggsave("freetown_2022_distribution.png")
 
 # (c) Delivery pace by day of week & time of day
-delivery_pace_tod_dow |> 
+fcc_2022_delivery_pace_tod_dow |> 
   ggplot(aes(x = dow, y = avg_daily_pace_tod_dow, fill = tod)) +
   geom_col(position = "dodge") +
   labs(title = "Delivery Pace by Day of Week & Time of Day (FCC 2022)",
-       x = "Day of the Week", y = "Average Deliveries per Enumerator", fill = "Time of Day") +
+       x = "Day of the Week", y = "Average Deliveries per Enumerator", fill = "Time of Day") 
 ggsave("freetown_2022_pace_dow_tod.png")
 
 
@@ -1315,7 +1302,7 @@ fcc_2021_unfiltered |>
   ggplot(aes(x = date, y = daily_avg)) +
   geom_line(color = "blue", linewidth = 1) +
   geom_point(size = 1.5, color = "black") +
-  labs(title = "Average Accurate Daily Deliveries (FCC 2021)", x = "Date", y = "Average Deliveries") +
+  labs(title = "Average Accurate Daily Deliveries (FCC 2021)", x = "Date", y = "Average Deliveries") 
 ggsave("freetown_2021_timeseries.png")
 
 # (b) Histogram + density curve
@@ -1323,15 +1310,15 @@ fcc_2021_unfiltered |>
   ggplot(aes(x = daily_avg)) +
   geom_histogram(aes(y = after_stat(density)), bins = 15, fill = "pink", alpha = 0.6, color = "black") +
   geom_density(color = "red", linewidth = 1) +
-  labs(title = "Distribution of Daily Delivery Pace (FCC 2021)", x = "Deliveries per Day", y = "Density") +
+  labs(title = "Distribution of Daily Delivery Pace (FCC 2021)", x = "Deliveries per Day", y = "Density") 
 ggsave("freetown_2021_distribution.png")
 
 # (c) Delivery pace by day of week & time of day
-delivery_pace_tod_dow |> 
+fcc_2021_delivery_pace_tod_dow |> 
   ggplot(aes(x = dow, y = avg_daily_pace_tod_dow, fill = tod)) +
   geom_col(position = "dodge") +
   labs(title = "Delivery Pace by Day of Week & Time of Day (FCC 2021)",
-       x = "Day of the Week", y = "Average Deliveries per Enumerator", fill = "Time of Day") +
+       x = "Day of the Week", y = "Average Deliveries per Enumerator", fill = "Time of Day") 
 ggsave("freetown_2021_pace_dow_tod.png")
 
 
@@ -1395,7 +1382,7 @@ all_deliveries |>
     title = "Distribution of Daily Delivery Pace: Filtered vs Unfiltered",
     x = "Deliveries per Day",
     y = "Density"
-  ) +
+  )
   ggsave("filtered vs. unfiltered: comparing_pace_all_cities_distribution.png")
 
 # (b) Summary bar chart
@@ -1407,10 +1394,49 @@ summary_all |>
     title = "Mean Daily Deliveries: Filtered vs Unfiltered",
     x = "Year",
     y = "Mean Deliveries per Day"
-  ) +
+  ) 
   ggsave("filtered vs. unfiltered: comparing_pace_all_cities_bar.png")
 
     
 # Time of Day & Day of Week Insights -------------------------------------------
 
+# Combine all cities and years tod_dow summaries into one dataset
+all_delivery_pace_tod_dow <- bind_rows(
+  fcc_2021_delivery_pace_tod_dow |> mutate(city = "Freetown", year = 2021),
+  fcc_2022_delivery_pace_tod_dow |> mutate(city = "Freetown", year = 2022),
+  fcc_2023_delivery_pace_tod_dow |> mutate(city = "Freetown", year = 2023),
+  fcc_2024_delivery_pace_tod_dow |> mutate(city = "Freetown", year = 2024),
+  fcc_2025_delivery_pace_tod_dow |> mutate(city = "Freetown", year = 2025),
+  kcc_2024_delivery_pace_tod_dow |> mutate(city = "Kenema", year = 2024),
+  kcc_2025_delivery_pace_tod_dow |> mutate(city = "Kenema", year = 2025),
+  mcc_2025_delivery_pace_tod_dow |> mutate(city = "Makeni", year = 2025)
+)
+
+all_delivery_pace_tod_dow |> 
+  ggplot(aes(x = dow, y = avg_daily_pace_tod_dow, fill = tod)) +
+  geom_col(position = "dodge") +
+  facet_grid(city ~ year) +
+  scale_x_discrete(labels = c("Mon","Tue","Wed","Thu","Fri","Sat","Sun")) +
+  labs(
+    title = "Delivery Pace by Day of Week & Time of Day (All Cities, All Years)",
+    x = "Day of the Week",
+    y = "Average Deliveries per Enumerator",
+    fill = "Time of Day"
+  ) 
+ggsave("tod and dow: comparing_pace_all_cities_bar.png")
+
+all_delivery_pace_tod_dow |> 
+  ggplot(aes(x = dow, y = avg_daily_pace_tod_dow, color = tod, group = tod)) +
+  geom_point(alpha = 0.6) +
+  geom_line(linewidth = 1) +
+  facet_grid(city ~ year) +
+  scale_x_discrete(labels = c("Mon","Tue","Wed","Thu","Fri","Sat","Sun")) +
+  labs(
+    title = "Delivery Pace Trends by Day of Week & Time of Day",
+    x = "Day of the Week",
+    y = "Average Deliveries per Enumerator",
+    color = "Time of Day"
+  ) 
+ggsave("tod and dow: comparing_pace_all_cities_trend.png")
+  
 
