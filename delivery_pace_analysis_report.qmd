@@ -34,6 +34,8 @@ To determine a realistic and accurate daily delivery pace to set for each city�
 
 #### 2026 Daily Delivery Targets
 
+Targets are set as ranges, with a minimum to sustain productivity and a maximum to reward high achievers without compromising performance quality.
+
 -   **Makeni**: 33-50 deliveries per day
 -   **Kenema**: 43-54 deliveries per day
 -   **Freetown**: 69-82 deliveries per day
@@ -2065,9 +2067,10 @@ This section analyzes average delivery pace by **day of week** and **time of day
 #| label: Combined Analysis - Time and Day Patterns
 #| echo: false
 
-# Combine all cities and years tod_dow summaries into one dataset
+# Visualization: Delivery pace by day of week and time of day (all cities, all years)
+
 all_delivery_pace_tod_dow <- bind_rows(
-  fcc_2021_delivery_pace_tod_dow |> mutate(city = "Freetown", year = 2021),
+  fcc_2021_delivery_pace_tod_dow|> mutate(city = "Freetown", year = 2021),
   fcc_2022_delivery_pace_tod_dow |> mutate(city = "Freetown", year = 2022),
   fcc_2023_delivery_pace_tod_dow |> mutate(city = "Freetown", year = 2023),
   fcc_2024_delivery_pace_tod_dow |> mutate(city = "Freetown", year = 2024),
@@ -2077,34 +2080,6 @@ all_delivery_pace_tod_dow <- bind_rows(
   mcc_2025_delivery_pace_tod_dow |> mutate(city = "Makeni", year = 2025)
 )
 
-# Summary table of average delivery pace patterns
-pace_summary <- all_delivery_pace_tod_dow |>
-  group_by(city, tod) |>
-  summarise(
-    avg_pace = mean(avg_daily_pace_tod_dow, na.rm = TRUE),
-    .groups = "drop"
-  ) |>
-  pivot_wider(names_from = tod, values_from = avg_pace)
-kable(
-  pace_summary,
-  caption = "Average Delivery Pace by Time of Day Across All Cities, All Years",
-  digits = 2
-)
-
-pace_summary <- all_delivery_pace_tod_dow |>
-  group_by(city, dow) |>
-  summarise(
-    avg_pace = mean(avg_daily_pace_tod_dow, na.rm = TRUE),
-    .groups = "drop"
-  ) |>
-  pivot_wider(names_from = dow, values_from = avg_pace)
-kable(
-  pace_summary,
-  caption = "Average Delivery Pace by Day of Week Across All Cities, All Years",
-  digits = 2
-)
-
-# Visualization: Delivery pace by day of week and time of day (all cities, all years)
 all_delivery_pace_tod_dow |> 
   ggplot(aes(x = dow, y = avg_daily_pace_tod_dow, fill = tod)) +
   geom_col(position = "dodge") +
@@ -2130,27 +2105,146 @@ all_delivery_pace_tod_dow |>
 ggsave("tod_dow_all_cities_bar.png", width = 40, height = 30, dpi = 300)
 
 
+# Time of Day Analysis
+all_delivery_pace_tod <- bind_rows(
+  fcc_2021_delivery_pace_tod|> mutate(city = "Freetown", year = 2021),
+  fcc_2022_delivery_pace_tod |> mutate(city = "Freetown", year = 2022),
+  fcc_2023_delivery_pace_tod |> mutate(city = "Freetown", year = 2023),
+  fcc_2024_delivery_pace_tod |> mutate(city = "Freetown", year = 2024),
+  fcc_2025_delivery_pace_tod |> mutate(city = "Freetown", year = 2025),
+  kcc_2024_delivery_pace_tod |> mutate(city = "Kenema", year = 2024),
+  kcc_2025_delivery_pace_tod |> mutate(city = "Kenema", year = 2025),
+  mcc_2025_delivery_pace_tod |> mutate(city = "Makeni", year = 2025)
+)
+
+detailed_pace_tod <- all_delivery_pace_tod |> # detailed averages of time of day by city and year
+  filter(!is.na(avg_daily_pace_tod)) |>
+  select(city, year, tod, avg_daily_pace_tod) |>
+  arrange(city, year, tod)
+
+city_pace_tod <- all_delivery_pace_tod |> # city-level averages by time of day (across years for each city)
+  filter(!is.na(avg_daily_pace_tod)) |>
+  group_by(city, tod) |>
+  summarise(
+    city_avg_pace_tod = mean(avg_daily_pace_tod, na.rm = TRUE),
+    years_count = n_distinct(year),
+    min_pace = min(avg_daily_pace_tod, na.rm = TRUE),
+    max_pace = max(avg_daily_pace_tod, na.rm = TRUE),
+    .groups = "drop"
+  )
+kable(city_pace_tod, format = "simple", caption = "Average Delivery Pace by Time of Day Across All Cities and Years")
+View(city_pace_tod)
+
+# Day of Week analysis
+
+all_delivery_pace_dow <- bind_rows(
+  fcc_2021_delivery_pace_dow|> mutate(city = "Freetown", year = 2021),
+  fcc_2022_delivery_pace_dow |> mutate(city = "Freetown", year = 2022),
+  fcc_2023_delivery_pace_dow |> mutate(city = "Freetown", year = 2023),
+  fcc_2024_delivery_pace_dow |> mutate(city = "Freetown", year = 2024),
+  fcc_2025_delivery_pace_dow |> mutate(city = "Freetown", year = 2025),
+  kcc_2024_delivery_pace_dow |> mutate(city = "Kenema", year = 2024),
+  kcc_2025_delivery_pace_dow |> mutate(city = "Kenema", year = 2025),
+  mcc_2025_delivery_pace_dow |> mutate(city = "Makeni", year = 2025)
+)
+
+
+detailed_pace_dow <- all_delivery_pace_dow |> # detailed averages of time of day by city and year
+  filter(!is.na(avg_daily_pace_dow)) |>
+  select(city, year, dow, avg_daily_pace_dow) |>
+  arrange(city, year, dow)
+
+city_pace_dow <- all_delivery_pace_dow |> # city-level averages by time of day (across years for each city)
+  filter(!is.na(avg_daily_pace_dow)) |>
+  group_by(city, dow) |>
+  summarise(
+    city_avg_pace_dow = mean(avg_daily_pace_dow, na.rm = TRUE),
+    years_count = n_distinct(year),
+    min_pace = min(avg_daily_pace_dow, na.rm = TRUE),
+    max_pace = max(avg_daily_pace_dow, na.rm = TRUE),
+    .groups = "drop"
+  )
+kable(city_pace_dow, format = "simple", caption = "Average Delivery Pace by Time of Day Across All Cities and Years")
+View(city_pace_dow)
+
+
+
+
 ```
 
-#### Makeni (2025)
+### Makeni 
 
-In Makeni, the highest-performing day is Tuesday, averaging 48.66 deliveries, followed by Monday at 43.57 and Friday at 36.30. Wednesday and Thursday are moderate-performance days with averages of 29.2 and 27.44 deliveries, while Saturday delivers 23.41 on average. Sunday represents the lowest activity at 13.80 deliveries, consistent with operational policies restricting work on non-operational days.
+#### 2025 Performance
 
-Examining the time-of-day performance, the 12:00–14:00 period emerges as the most productive window, averaging 18.39 deliveries, followed by 09:00–11:00 with 14.94 deliveries, and 15:00–17:00 with 12.89 deliveries. Early morning (06:00–08:00) and late-night periods remain predictably low, averaging 5.91 and 4.97 deliveries, respectively. The combination of DoW and ToD analysis indicates that Makeni’s peak operational capacity is concentrated in mid-week mid-day periods.
+In Makeni's single year of observation (2025), the highest-performing day is Tuesday, averaging 48.66 deliveries per enumerator, followed by Monday at 43.57 and Friday at 36.30. Wednesday and Thursday are moderate-performance days with averages of 29.22 and 27.44 deliveries respectively, while Saturday delivers 23.41 on average. Sunday represents the lowest activity at 13.80 deliveries, likely reflecting reduced operational hours or staffing on this traditional rest day.
 
-#### Kenema (2024-2025)
+Examining the time-of-day performance in 2025, the 12:00–14:00 period emerges as the most productive window at 18.39 deliveries per enumerator, followed by 09:00–11:00 with 14.94 deliveries, and 15:00–17:00 with 12.89 deliveries. Early morning (06:00–08:00) and night/early morning periods remain predictably low at 5.91 and 4.97 deliveries respectively.
 
-Kenema demonstrates notable shifts in delivery patterns between 2024 and 2025. In 2024, Thursday and Monday were the highest-performing days with averages of 61.79 and 61.43 deliveries, while Wednesday and Saturday were low points, averaging 21.03 and 21.74 deliveries, respectively. In 2025, Sunday and Wednesday became the peak days, with averages of 49.50 and 46.36 deliveries, while Saturday became the lowest-performing day at 33.52 deliveries.
+#### Average Performance
 
-Time-of-day analysis complements these patterns. In 2025, the 12:00–14:00 window remained the peak period with 20.55 deliveries, while the morning period (09:00–11:00) and afternoon (15:00–17:00) periods averaged 18.00 and 14.71 deliveries, respectively. Lower activity periods, including 06:00–08:00 and night shifts, averaged 5.97 and 6.72 deliveries. Together, the DoW and ToD patterns show that Kenema’s operations have become more predictable in 2025, with a clear concentration of activity during mid-week and mid-day periods.
+Since only one year of data is available, the 2025 figures represent Makeni's averages. The combination of day-of-week and time-of-day analysis indicates that Makeni's peak operational capacity is concentrated in early-to-mid-week and midday periods, particularly Tuesday midday hours. The significant drop-off from Tuesday's peak to other weekdays (up to 73% lower on Sunday) suggests potential opportunities for more consistent resource allocation and operational standardization. Without multi-year data, it remains unclear whether these patterns represent stable operational norms or a single-year snapshot that may not reflect longer-term trends.
 
-#### Freetown (2021-2025)
+## Kenema 
 
-Freetown displays high and relatively stable delivery volumes, with some variation in peak days across years. In 2021, Friday (64.71 deliveries), Wednesday (62.98), and Thursday (61.24) were the top-performing days. In subsequent years, peak days shifted slightly, with Monday and Tuesday dominating in 2024–2025. Sundays consistently recorded the lowest activity, ranging from 23.25 in 2024 to 44.35 in 2022.
+#### 2024 Performance
 
-Time-of-day performance in Freetown shows a consistent mid-day peak. Across the years, 12:00–14:00 remains the most productive window, ranging from 24.10 deliveries in 2021 to 30.88 in 2025. Morning hours (09:00–11:00) follow closely, averaging 20–27 deliveries, and afternoon periods (15:00–17:00) maintain moderate activity, averaging 14–24 deliveries. Early morning and night periods consistently show the lowest deliveries.
+In 2024, Kenema's operations showed a distinctive pattern with Thursday and Monday as the highest-performing days. Thursday averaged 61.79 deliveries per enumerator, and Monday averaged 61.43 deliveries. Tuesday performed moderately at 43.01 deliveries, while Friday averaged 43.66 deliveries. Wednesday and Saturday were notably weak, averaging just 21.03 and 21.74 deliveries respectively—representing a 65-66% decline from the peak days. There are no recorded deliveries on Sundays for Kenema's 2024 data.
 
-The combined DoW and ToD analysis indicates that Freetown’s operations handle high volumes efficiently, with peak activity concentrated in mid-week and mid-day periods.
+Time-of-day patterns in 2024 showed the 12:00–14:00 period leading at 21.24 deliveries per enumerator, followed by 09:00–11:00 at 20.87 deliveries and 15:00–17:00 at 15.02 deliveries. Early morning (06:00–08:00) averaged 5.97 deliveries, while night/early morning periods averaged 6.72 deliveries.
+
+#### 2025 Performance
+
+In 2025, Kenema's operational patterns shifted significantly. Sunday emerged as an important day with 49.50 deliveries per enumerator. Wednesday rebounded dramatically to 46.36 deliveries—more than doubling from its 2024 low. Thursday remained relatively strong at 45.70 deliveries, though down from 2024's peak. Monday declined to 38.80 deliveries (a 37% drop from 2024), Tuesday fell to 37.73 deliveries, and Friday decreased to 36.34 deliveries. Saturday remained the lowest weekday at 33.52 deliveries but improved 54% from 2024.
+
+Time-of-day performance in 2025 showed some compression. The 12:00–14:00 period averaged 20.55 deliveries per enumerator (slightly lower than 2024), 09:00–11:00 dropped to 18.00 deliveries (14% decline), and 15:00–17:00 remained stable at 14.71 deliveries. Early morning (06:00–08:00) decreased to 4.87 deliveries, while night/early morning periods fell to 4.73 deliveries.
+
+#### Average Performance (2024-2025)
+
+Across both years, Kenema averages reveal moderate overall performance with high variability. Monday averages 50.11 deliveries per enumerator across the two years (though this masks the 37% year-over-year decline). Thursday averages 53.74 deliveries—the highest across both years. Tuesday averages 40.37 deliveries, Wednesday averages 33.69 deliveries (despite the 121% improvement from 2024 to 2025), Friday averages 40.00 deliveries, and Saturday averages 27.63 deliveries. Sunday's single-year figure of 49.50 cannot be averaged meaningfully.
+
+For time-of-day averages, the 12:00–14:00 window averages 20.90 deliveries per enumerator across both years, 09:00–11:00 averages 19.44 deliveries, 15:00–17:00 averages 14.87 deliveries, 06:00–08:00 averages 5.42 deliveries, and night/early morning periods average 5.72 deliveries.
+
+The dramatic year-over-year variations in day-of-week performance (up to 121% increases or 37% decreases) illlustrates a significant operational restructuring from 2024-2025 delivery in Kenema. The relative stability in time-of-day patterns, by contrast, indicates more consistent intra-day scheduling practices even as weekly allocation changes.
+
+## Freetown 
+
+#### 2021 Performance
+
+In 2021, Freetown's weekday performance showed Friday leading at 64.71 deliveries per enumerator, followed by Wednesday at 62.98, Thursday at 61.24, Monday at 61.62, Tuesday at 59.47, and Saturday at 59.98. Sunday recorded 37.50 deliveries.
+
+Time-of-day performance in 2021 showed the 12:00–14:00 period at 24.10 deliveries per enumerator, 09:00–11:00 at 20.29 deliveries, 15:00–17:00 at 19.08 deliveries, 06:00–08:00 at 6.49 deliveries, and night/early morning at 7.91 deliveries.
+
+#### 2022 Performance
+
+In 2022, weekday patterns shifted slightly with Monday rising to 63.72 deliveries per enumerator, Tuesday at 64.77, Wednesday at 64.04, Thursday at 59.08, Friday at 57.88, and Saturday at 57.50. Sunday improved notably to 44.35 deliveries.
+
+Time-of-day performance in 2022 showed the 12:00–14:00 period at 26.26 deliveries, 09:00–11:00 at 23.43 deliveries, 15:00–17:00 at 20.16 deliveries, 06:00–08:00 at 6.70 deliveries, and night/early morning at 8.62 deliveries.
+
+#### 2023 Performance
+
+In 2023, Monday reached 64.62 deliveries per enumerator, Tuesday peaked at 71.77, Wednesday at 70.60, Thursday at 67.73, Friday at 68.32, and Saturday at 69.69. Sunday increased to 53.36 deliveries—the highest Sunday performance across all years.
+
+Time-of-day performance in 2023 showed the 12:00–14:00 period at 28.20 deliveries, 09:00–11:00 at 25.04 deliveries, 15:00–17:00 at 23.85 deliveries, 06:00–08:00 at 8.67 deliveries, and night/early morning at 13.94 deliveries.
+
+#### 2024 Performance
+
+In 2024, Monday delivered 58.42 deliveries per enumerator, Tuesday 60.35, Wednesday 59.05, Thursday 60.74, Friday 61.78, and Saturday 64.65. Sunday dropped sharply to 23.25 deliveries—the lowest Sunday performance across all years.
+
+Time-of-day performance in 2024 showed the 12:00–14:00 period at 27.02 deliveries, 09:00–11:00 at 24.57 deliveries, 15:00–17:00 at 21.04 deliveries, 06:00–08:00 at 6.95 deliveries, and night/early morning at 10.11 deliveries.
+
+#### 2025 Performance
+
+In 2025, Monday surged to 73.73 deliveries per enumerator—the highest single day-of-week performance across all years and cities. Tuesday reached 66.42, Wednesday 70.65, Thursday 70.49, Friday 68.49, and Saturday 69.08. Sunday data is not provided for 2025.
+
+Time-of-day performance in 2025 showed the 12:00–14:00 period at 30.88 deliveries—the highest midday performance across all years. The 09:00–11:00 period reached 27.29 deliveries, 15:00–17:00 at 21.09 deliveries, 06:00–08:00 at 7.12 deliveries, and night/early morning at 10.02 deliveries.
+
+#### Average Performance (2021-2025)
+
+Across five years, Freetown's averages demonstrate consistently high productivity with moderate variation. Monday averages 65.23 deliveries per enumerator (ranging from 58.42 to 73.73—a 26% spread), Tuesday averages 64.55 deliveries (59.47 to 71.77—a 21% spread), Wednesday averages 65.26 deliveries (59.05 to 70.65—a 20% spread), Thursday averages 63.85 deliveries (59.08 to 67.73—a 15% spread), Friday averages 64.44 deliveries (57.88 to 68.32—an 18% spread), and Saturday averages 64.11 deliveries (57.50 to 69.69—a 21% spread). Sunday averages 39.78 deliveries across the four years with data (23.25 to 53.36—a dramatic 129% spread indicating evolving weekend operation policies).
+
+Time-of-day averages across the five years show the 12:00–14:00 period at 27.53 deliveries per enumerator (24.10 to 30.88—a 28% increase trajectory), 09:00–11:00 at 24.45 deliveries (20.29 to 27.29—a 35% increase trajectory), 15:00–17:00 at 22.05 deliveries (19.08 to 23.85—a 25% increase trajectory), 06:00–08:00 at 7.16 deliveries (6.49 to 8.67—a 34% spread), and night/early morning at 10.10 deliveries (7.91 to 13.94—a 76% spread).
+
+The year-over-year trajectory shows Freetown's operations strengthening over time, with 2025 representing peak performance in most metrics. The relative stability in weekday averages (Monday through Saturday showing less than 3% variation from each other) demonstrates exceptional operational consistency. The gradual improvements in midday productivity (28% increase from 2021 to 2025) suggest successful operational optimization and capacity building over the five-year period.
 
 #### Cross-City Insights
 
@@ -2163,6 +2257,8 @@ Mid-week or early-week days generally deliver the highest volume, while Sundays 
 The analysis reveals distinct delivery pace profiles across the three cities, with each demonstrating unique strengths and improvement opportunities. Freetown demonstrates the highest average daily deliveries with an average of 59.74 daily deliveries, though it experiences some performance fluctuations that require careful management. Kenema shows the most encouraging improvement trajectory, increasing from 38.83 deliveries in 2024 to 40.15 deliveries in 2025 while significantly reducing day-to-day variability. Makeni maintains stable and predictable performance with 31.28 daily deliveries, providing a solid foundation for sustainable growth. These findings inform targeted recommendations designed to set sustainable daily delivery paces across all three cities in the 2025-2026 fiscal year and beyond.
 
 ## Proposed City-Specific Delivery Pace Targets for the 2025–2026 Fiscal Year
+
+Targets are established as ranges, providing both lower and upper benchmarks to guide enumerator performance. The minimum threshold functions as a safeguard to ensure consistent productivity across the team, discouraging underperformance and reinforcing accountability. It also serves as a critical reference point for the design of delivery zones, ensuring workloads are distributed fairly and remain manageable for all enumerators. Conversely, the maximum threshold is intended to recognize and reward the contributions of higher-achieving enumerators, while at the same time preventing risks associated with excessive workloads, such as fatigue, mistakes, or declining data quality. This approach strikes a balance between motivating steady improvement, accommodating varying capacities, and maintaining high performance standards without compromising quality.
 
 #### Makeni
 
