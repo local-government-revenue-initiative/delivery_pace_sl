@@ -1,0 +1,16 @@
+# 1. Year-over-year growth visualization
+growth_viz <- summary_change |>
+  filter(!is.na(pct_change)) |>
+  ggplot(aes(x = year, y = pct_change, color = city)) +
+  geom_line(linewidth = 1.5) +
+  geom_point(size = 3) +
+  geom_hline(yintercept = 0, linetype = "dashed", alpha = 0.5) +
+  facet_wrap(~dataset) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  labs(
+    title = "Year-over-Year Growth in Delivery Performance",
+    subtitle = "Comparing filtered vs unfiltered data trends",
+    x = "Year",
+    y = "Percentage Change from Previous Year"
+  ) +
+  theme_minimal()
