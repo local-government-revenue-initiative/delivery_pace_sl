@@ -12,6 +12,19 @@ editor: visual
 \end{figure}
 ```
 
+```{r}
+#| label: Loading the Necessary Packages
+#| include: false
+
+library(tidyverse)
+library(janitor)
+library(skimr)
+library(ggthemes)
+library(knitr)
+library(glue)
+
+```
+
 # **Summary**
 
 #### **Objective**
@@ -38,7 +51,7 @@ Targets are set as ranges, with a minimum to sustain productivity and a maximum 
 
 -   **Makeni**: 33-50 deliveries per day
 -   **Kenema**: 43-54 deliveries per day
--   **Freetown**: 69-82 deliveries per day
+-   **Freetown**: 68-80 deliveries per day
 
 #### Strategic Considerations
 
@@ -76,7 +89,217 @@ The three cities analyzed in this report are at different stages of implementing
 -   **Kenema** has two years of delivery data, reflecting its earlier adoption of the reform.
 -   **Freetown**, with the longest experience, has five years of delivery data, providing the most comprehensive dataset.
 
-In addition to differences in data length, the underlying data structures vary by city due to the use of different versions of the MOPTAX system:
+```{r}
+#| label: Sample Sizes (# of deliveries and enumerators)
+#| echo: false
+#| results: hide
+#| warning: false
+#| message: false
+
+# Function to standardize names (fix data entry errors)
+standardize_names <- function(name) {
+  name_corrections <- c(
+    "anthony macarvoray" = "anthony macavoray",
+    "bernadet braima" = "bernadet brima",
+    "magaret mansaray" = "margaret mansaray",
+    "margret mansaray" = "margaret mansaray",
+    "magaret morie" = "margaret morie",
+    "margret morie" = "margaret morie"
+  )
+  corrected_name <- name_corrections[name]
+  if (is.na(corrected_name)) name else corrected_name
+}
+
+# Function to count unique enumerators
+count_enumerators <- function(df, name_columns) {
+  if (length(name_columns) == 2) {
+    df |>
+      mutate(
+        enumerator = paste(
+          ifelse(is.na(.data[[name_columns[1]]]), "", .data[[name_columns[1]]]),
+          ifelse(is.na(.data[[name_columns[2]]]), "", .data[[name_columns[2]]])
+        ),
+        enumerator = trimws(enumerator),
+        enumerator = str_to_lower(enumerator),
+        enumerator = str_replace_all(enumerator, "\\.", ""),
+        enumerator = str_replace_all(enumerator, "\\s+", " "),
+        enumerator = sapply(enumerator, standardize_names)
+      ) |>
+      filter(enumerator != "") |>
+      pull(enumerator) |>
+      unique() |>
+      sort()
+  } else {
+    df |>
+      filter(!is.na(.data[[name_columns[1]]])) |>
+      mutate(
+        temp_name = .data[[name_columns[1]]] |> as.character() |> trimws() |> str_to_lower() |> str_replace_all("\\.", "") |> str_replace_all("\\s+", " "),
+        temp_name = sapply(temp_name, standardize_names)
+      ) |>
+      filter(temp_name != "") |>
+      pull(temp_name) |>
+      unique() |>
+      sort()
+  }
+}
+
+# FILE CONFIGURATION -------------------------------------------------------------
+
+makeni_files <- list("makeni_2025" = "mcc_2025.csv")
+kenema_files <- list("kenema_2024" = "kcc_2024.csv", "kenema_2025" = "kcc_2025.csv")
+freetown_files <- list(
+  freetown_2021 = c("fcc_2021_team_1-3.csv", "fcc_2021_team_4-6.csv"),
+  freetown_2022 = c("fcc_2022_team_1-3.csv", "fcc_2022_team_4-6.csv"),
+  freetown_2023 = c("fcc_2023_team_1-3.csv", "fcc_2023_team_4-6.csv"),
+  freetown_2024 = c("fcc_2024_team_1-3.csv", "fcc_2024_team_4-6.csv"),
+  freetown_2025 = c("fcc_2025_rnd1_team_1-3.csv", "fcc_2025_rnd1_team_4-6.csv")
+)
+
+enumerator_columns <- list(
+  makeni = c("mobile_user_first_name", "mobile_user_last_name"),
+  freetown = c("assignee"),
+  kenema_2024 = c("assignee"),
+  kenema_2025 = c("full_name")
+)
+
+# PROCESSING DATA ---------------------------------------------------------------
+
+results <- list()
+
+# Helper function to read and clean a CSV
+read_and_clean <- function(path) {
+  read_csv(path, show_col_types = FALSE) |> clean_names()
+}
+
+# --- Makeni ---
+cat("Processing Makeni files...\n")
+for (file_name in names(makeni_files)) {
+  file_path <- makeni_files[[file_name]]
+  if (!file.exists(file_path)) {
+    cat("  Warning: File not found -", file_path, "\n")
+    next
+  }
+  
+  tryCatch({
+    df <- read_and_clean(file_path)
+    year <- str_extract(file_path, "\\d{4}") |> as.numeric()
+    enumerators <- count_enumerators(df, enumerator_columns$makeni)
+    
+    results[[length(results) + 1]] <- data.frame(
+      City = "Makeni",
+      Year = year,
+      Total_Deliveries = nrow(df),
+      Total_Enumerators = length(enumerators),
+      Enumerators = paste(enumerators, collapse = ", "),
+      stringsAsFactors = FALSE
+    )
+    
+    cat("  Processed:", file_path, "- Total Deliveries:", nrow(df), "- Unique Enumerators:", length(enumerators), "\n")
+  }, error = function(e) cat("  Error processing", file_path, ":", conditionMessage(e), "\n"))
+}
+
+# --- Freetown ---
+cat("\nProcessing Freetown files...\n")
+for (file_name in names(freetown_files)) {
+  file_pair <- freetown_files[[file_name]]
+  year <- str_extract(file_name, "\\d{4}") |> as.numeric()
+  files_exist <- file.exists(file_pair)
+  
+  if (!any(files_exist)) {
+    cat("  Warning: No files found for Freetown", year, "\n")
+    next
+  }
+  
+  tryCatch({
+    df_list <- list()
+    for (i in seq_along(file_pair)) {
+      if (files_exist[i]) df_list[[i]] <- read_and_clean(file_pair[i])
+    }
+    df_combined <- bind_rows(df_list)
+    enumerators <- count_enumerators(df_combined, enumerator_columns$freetown)
+    
+    results[[length(results) + 1]] <- data.frame(
+      City = "Freetown",
+      Year = year,
+      Total_Deliveries = nrow(df_combined),
+      Total_Enumerators = length(enumerators),
+      Enumerators = paste(enumerators, collapse = ", "),
+      stringsAsFactors = FALSE
+    )
+    
+    cat("  Combined Freetown", year, "- Total Rows:", nrow(df_combined), "\n")
+  }, error = function(e) cat("  Error processing Freetown", year, ":", conditionMessage(e), "\n"))
+}
+
+# --- Kenema ---
+cat("\nProcessing Kenema files...\n")
+for (file_name in names(kenema_files)) {
+  file_path <- kenema_files[[file_name]]
+  if (!file.exists(file_path)) {
+    cat("  Warning: File not found -", file_path, "\n")
+    next
+  }
+  
+  tryCatch({
+    df <- read_and_clean(file_path)
+    year <- str_extract(file_path, "\\d{4}") |> as.numeric()
+    name_cols <- enumerator_columns[[file_name]]
+    
+    # Diagnostic for Kenema 2025
+    if (file_name == "kenema_2025") {
+      cat("\n  === DIAGNOSTIC FOR KENEMA 2025 ===\n")
+      raw_names <- df |> filter(!is.na(.data[[name_cols[1]]])) |> pull(.data[[name_cols[1]]]) |> unique()
+      cleaned_names <- df |> filter(!is.na(.data[[name_cols[1]]])) |> mutate(temp_name = trimws(str_to_lower(.data[[name_cols[1]]]))) |> pull(temp_name) |> unique()
+      cat("  Raw unique names:", length(raw_names), "\n")
+      cat("  Cleaned unique names:", length(cleaned_names), "\n")
+      name_freq <- df |> filter(!is.na(.data[[name_cols[1]]])) |> count(.data[[name_cols[1]]]) |> arrange(desc(n))
+      cat("  Top 10 most frequent names:\n"); print(head(name_freq, 10))
+      cat("  All unique name variations:\n"); print(sort(raw_names))
+      cat("  === END DIAGNOSTIC ===\n\n")
+    }
+    
+    enumerators <- count_enumerators(df, name_cols)
+    
+    results[[length(results) + 1]] <- data.frame(
+      City = "Kenema",
+      Year = year,
+      Total_Deliveries = nrow(df),
+      Total_Enumerators = length(enumerators),
+      Enumerators = paste(enumerators, collapse = ", "),
+      stringsAsFactors = FALSE
+    )
+    
+    cat("  Processed:", file_path, "- Total Deliveries:", nrow(df), "- Unique Enumerators:", length(enumerators), "\n")
+  }, error = function(e) cat("  Error processing", file_path, ":", conditionMessage(e), "\n"))
+}
+
+```
+
+```{r}
+#| label: display_table
+#| echo: false    
+#| warning: false
+#| message: false
+
+# Combine results and create summary table
+summary <- bind_rows(results)
+
+if (nrow(summary) > 0) {
+  sample_size_summary <- summary |> 
+    select(City, Year, Total_Deliveries, Total_Enumerators)
+  
+  kable(
+    sample_size_summary,
+    caption = "Sample Sizes: Deliveries and Enumerators by City and Year"
+  )
+}
+```
+
+The study comprises 634,918 tax bill deliveries collected across three cities over multiple years. The Freetown sample includes 559,788 observations spanning 2021-2025 (88% of total sample), with an average of 63-64 enumerators anually . The Kenema sample contains 56,637 observations across 2024-2025, with number of deliveries deliveries increasing 11.4% (from 26,798 to 29,839) while the total number of enumerators decreased from 62 to 30 individuals. The Makeni sample consists of 19,493 deliveries from 2025 with a total number of 42 enumerators, the smallest dataset. The variation in sample sizes and total number of enumerators across cities reflects differences in population density, administrative capacity, and delivery methodologies that should be considered during cross-city comparisons.
+
+**Note:** The reported sample sizes—especially the total number of deliveries—may underestimate the actual number of deliveries completed. Datasets may be missing data due to technological issues and/or instances where enumerators did not submit their deliveries via delivery apps.
+
+In addition to differences in data length and sample size, the underlying data structures vary by city due to the use of different versions of the MOPTAX system:
 
 -   **Makeni’s** data was captured entirely in **MOPTAX 2.0**.
 -   **Kenema’s** data spans both **MOPTAX 1.0 and 2.0**, creating a hybrid structure.
@@ -87,19 +310,6 @@ These variations matter because the two MOPTAX versions create datasets that dif
 Moreover, Freetown’s 2025 dataset contains additional complexities, as it includes two rounds of delivery. This analysis focuses only on Round 1, which primarily consisted of residential (RDN) deliveries and excluded business licenses. Business license deliveries often take a different amount of time than residential deliveries, thus this data irregularity could distort delivery pace outcomes. As such, results from Freetown 2025 should be interpreted with this context in mind.
 
 Finally, also important to note is that most typical delivery period work days span from Monday or Tuesday through Friday or Saturday, and should almost always fall within standard operational hours of 8:00 a.m. to 5:30 p.m. This has implications for deriving insights from the temporal analysis conducted.
-
-```{r}
-#| label: Loading the Necessary Packages
-#| include: false
-
-library(tidyverse)
-library(janitor)
-library(skimr)
-library(ggthemes)
-library(knitr)
-library(glue)
-
-```
 
 ```{r}
 #| label: Makeni 2025 Analysis
@@ -1956,28 +2166,26 @@ summary_all <- all_deliveries |>
   group_by(city, year, dataset) |>
   summarise(
     mean_daily = mean(daily_avg, na.rm = TRUE),
+    sd_daily   = sd(daily_avg, na.rm = TRUE),
+    n          = sum(!is.na(daily_avg)),
+    se         = sd_daily / sqrt(n),
     median_daily = median(daily_avg, na.rm = TRUE),
     p80 = quantile(daily_avg, 0.8, na.rm = TRUE),
     p90 = quantile(daily_avg, 0.9, na.rm = TRUE),
     .groups = "drop"
   )
 
-summary_change <- summary_all |> # adding year-over-year % changes in average daily deliveries (ignores NAs for first year)
-  arrange(city, dataset, year) |>  
-  group_by(city, dataset) |>
+summary_all_table <- summary_all |> # making a nicer table for pdf output
   mutate(
-    pct_change = (mean_daily - lag(mean_daily)) / lag(mean_daily) * 100
+    Mean = round(mean_daily, 2),
+    SD   = round(sd_daily, 2),
+    Median = round(median_daily, 2),
+    P80  = round(p80, 2),
+    P90  = round(p90, 2)
   ) |>
-  ungroup()
-kable( summary_change, caption = "Year-over-Year Percentage Change in Average Daily Deliveries" )
+  select(City = city, Year = year, Dataset = dataset, Mean, SD, Median, P80, P90)
 
-
-avg_change <- summary_change |>  # adding total average % change per city overtime
-  group_by(city, dataset) |> 
-  summarise( avg_pct_change = mean(pct_change, na.rm = TRUE), 
-             .groups = "drop" 
-  )
-kable( avg_change, caption = "Average Percentage Change in Delivery Pace Over Time by City" )
+kable(summary_all_table, caption = "Summary of Daily Deliveries by City, Year, and Dataset", digits = 2)
 
 
 # Visualizations
@@ -2027,6 +2235,73 @@ all_deliveries |>
   )
 ggsave("filtered_vs_unfiltered_all_cities_distribution.png", width = 30, height = 24, dpi = 300)
 
+# --- Year-over-year growth visualization: filtered vs. unfiltered ---
+
+
+summary_change <- summary_all |> # adding year-over-year % changes in average daily deliveries (ignores NAs for first year)
+  arrange(city, dataset, year) |>  
+  group_by(city, dataset) |>
+  mutate(
+    pct_change = (mean_daily - lag(mean_daily)) / lag(mean_daily) * 100
+  ) |>
+  ungroup()
+
+
+summary_change_table <- summary_change |> # making nicer table for pdf output
+  mutate(
+    Mean = round(mean_daily, 2),
+    Percentage_Change  = round(pct_change, 2)
+  ) |>
+  select(City = city, Year = year, Dataset = dataset, Mean, Percentage_Change)
+
+kable(summary_change_table, caption = "Year-Over-Year Change in Average Daily Deliveries", digits = 2)
+
+
+
+avg_change <- summary_change |>  # adding total average % change per city overtime
+  group_by(city, dataset) |> 
+  summarise( avg_pct_change = mean(pct_change, na.rm = TRUE), 
+             .groups = "drop" 
+  )
+
+avg_change_table <- avg_change |> # making nicer table for pdf output
+  mutate(AvgChange = round(avg_pct_change, 2)) |>
+  select(City = city, Dataset = dataset, AvgChange)
+
+metric <- "mean_daily"
+summary_change <- summary_all |>
+  mutate(year = as.integer(year)) |>
+  arrange(city, dataset, year) |>
+  group_by(city, dataset) |>
+  mutate(prev = dplyr::lag(.data[[metric]]),
+         pct_change = ifelse(!is.na(prev) & prev != 0,
+                             (.data[[metric]] - prev) / prev * 100, NA_real_)) |>
+  ungroup()
+
+growth_viz <- summary_change |>
+  filter(!is.na(pct_change)) |>
+  ggplot(aes(x = year, y = pct_change, color = city)) +
+  geom_line(linewidth = 1.5) +
+  geom_point(size = 3) +
+  geom_hline(yintercept = 0, linetype = "dashed", alpha = 0.5) +
+  facet_wrap(~dataset) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  labs(title = "Year-Over-Year Growth in Delivery Performance",
+       subtitle = "Comparing filtered vs unfiltered data trends",
+       x = "Year", y = "Percentage change from previous year") +
+  theme_minimal(base_size = 20) +  # <-- sets global text size
+  theme(
+    plot.title = element_text(size = 30, face = "bold"),
+    axis.title = element_text(size = 26),
+    axis.text  = element_text(size = 22),
+    legend.title = element_text(size = 26),
+    legend.text  = element_text(size = 22),
+    strip.text = element_text(size = 20, face = "bold")
+  )
+
+print(growth_viz)
+
+ggsave("yoy_growth_performance.png", growth_viz, width = 30, height = 24, dpi = 300)
 
 
 ```
@@ -2047,7 +2322,7 @@ The distribution analysis shows that Kenema exhibits a substantial transformatio
 
 In Freetown, analysis across multiple years demonstrates both growth and fluctuations in operational performance. The mean daily deliveries in filtered dataset were 56.41 in 2021, 51.04 in 2022, 59.08 in 2023, 64.35 in 2024, and 59.74 in 2025. In unfiltered dataset, the mean deliveries were slightly higher each year, ranging from 59.67 in 2021 to 64.30 in 2025. The median and high-performance thresholds followed similar trends, reflecting growing peak capacity over time.
 
-The year-over-year performance changes provide additional insight. In the filtered dataset, Freetown experienced a decrease of 9.52% from 2021 to 2022, followed by strong growth of 15.75% in 2022–2023 and 8.93% in 2023–2024, before declining 7.17% in 2024–2025. Unfiltered data shows slightly smaller fluctuations, with increases of 12.77% from 2022–2023 and 7.11% from 2023–2024, followed by a decrease of 3.28% in 2024–2025. The average annual change rates indicate gradual long-term growth, with 1.997% for filtered data and 2.212% for unfiltered data.
+The year-over-year performance changes provide additional insight. In the filtered dataset, Freetown experienced a decrease of 9.52% from 2021 to 2022, followed by strong growth of 15.75% in 2022–2023 and 8.93% in 2023–2024, before declining 7.17% in 2024–2025. Unfiltered data shows a similar patter with slightly smaller fluctuations, with increases of 12.77% from 2022–2023 and 7.11% from 2023–2024, followed by a decrease of 3.28% in 2024–2025. The average annual change rates indicate gradual long-term growth, with 1.997% for filtered data and 2.212% for unfiltered data.
 
 These results indicate that, while daily averages fluctuate, Freetown has achieved a general upward trend in operational capacity over the years. Filtering reduces the impact of anomalies on the data but does not materially change the observed trends, suggesting that the improvements and declines reflect true operational performance rather than delivery errors.
 
@@ -2063,7 +2338,7 @@ Overall, filtered data confirms that inaccurate deliveries do not significantly 
 
 This section analyzes average delivery pace by **day of week** and **time of day**, highlighting cross-year and cross-city trends.
 
-```{r, fig.width=50, fig.height=40, dpi=300}
+```{r, fig.width=24, fig.height=18, dpi=300}
 #| label: Combined Analysis - Time and Day Patterns
 #| echo: false
 
@@ -2091,19 +2366,98 @@ all_delivery_pace_tod_dow |>
     y = "Average Deliveries per Enumerator",
     fill = "Time of Day (3-hour brackets)"
   ) +
-  theme_minimal(base_size = 30) +  # <-- lighter theme, bigger fonts
+  theme_minimal(base_size = 22) +  
   theme(
-    plot.title = element_text(size = 60, face = "bold"),
-    axis.title = element_text(size = 40),
-    axis.text.x = element_text(size = 32, angle = 45, hjust = 1),
-    axis.text.y = element_text(size = 32),
-    legend.title = element_text(size = 50),
-    legend.text  = element_text(size = 40),
-    strip.text   = element_text(size = 30, face = "bold")
-  )
-  
-ggsave("tod_dow_all_cities_bar.png", width = 40, height = 30, dpi = 300)
+    plot.title   = element_text(size = 34, face = "bold"),   
+    axis.title   = element_text(size = 26),
+    axis.text.x  = element_text(size = 20, angle = 45, hjust = 1),
+    axis.text.y  = element_text(size = 20),
+    legend.title = element_text(size = 24),
+    legend.text  = element_text(size = 20),
+    strip.text   = element_text(size = 24, face = "bold")    
+  ) +
+  guides(fill = guide_legend(keywidth = 1.5, keyheight = 3))  
 
+ggsave("tod_dow_all_cities_bar.png", width = 24, height = 18, dpi = 300)
+
+
+# --- Heatmap of performance by day/time by city (year specific)- Robin ---
+
+# Define the cities to be plotted.
+cities <- c("Freetown", "Kenema", "Makeni")
+
+for (c in cities) {
+  
+  heatmap_plot <- all_delivery_pace_tod_dow |>
+    filter(city == c, year == 2025) |>
+    # weekly days ordering
+    mutate(dow = factor(dow, levels = c("Mon","Tue","Wed","Thu","Fri","Sat","Sun"))) |>
+    ggplot(aes(x = dow, y = tod, fill = avg_daily_pace_tod_dow)) +
+    geom_tile(color = "grey80") +
+    scale_fill_gradient2(
+      low = "blue", mid = "white", high = "red",
+      midpoint = median(all_delivery_pace_tod_dow$avg_daily_pace_tod_dow, na.rm = TRUE)
+    ) +
+    geom_text(aes(label = round(avg_daily_pace_tod_dow, 1)),
+              color = "black", size = 3) +
+    labs(
+      title = paste("Delivery performance heatmap –", c, "2025"),
+      x = "Day of week",
+      y = "Time of day",
+      fill = "Avg deliveries"
+    ) +
+    theme_minimal()
+  
+  ggsave(
+    paste0(tolower(c), "_2025_heatmap.png"),
+    heatmap_plot,
+    width = 8, height = 6, dpi = 300
+  )
+}
+
+# --- Heatmap of performance by day/time all city (average)-Robin --- 
+
+# ordre des axes
+tod_levels <- c("06–08","09–11","12–14","15–17","Other (Night/Early Morning)")
+
+city_avg <- all_delivery_pace_tod_dow |>
+  group_by(city, dow, tod) |>
+  summarise(avg_deliv = mean(avg_daily_pace_tod_dow, na.rm = TRUE), .groups = "drop") |>
+  mutate(
+    dow = factor(dow, levels = c("Mon","Tue","Wed","Thu","Fri","Sat","Sun")),
+    tod = factor(tod, levels = tod_levels)
+  )
+
+midpt <- median(city_avg$avg_deliv, na.rm = TRUE)
+
+p <- city_avg |>
+  ggplot(aes(x = dow, y = tod, fill = avg_deliv)) +
+  geom_tile(color = "grey80") +
+  scale_fill_gradient2(
+    low = "blue", mid = "white", high = "red", midpoint = midpt
+  ) +
+  geom_text(aes(label = round(avg_deliv, 1)), size = 6) +  
+  facet_wrap(~ city) +
+  labs(
+    title = "Delivery Performance Heatmap - Multi-Year & City Average",
+    x = "Day of week", y = "Time of day", fill = "Avg deliveries"
+  ) +
+  theme_minimal(base_size = 24) +  # keeps default text big but not excessive
+  theme(
+    plot.title   = element_text(size = 36, face = "bold"),  # headline style
+    axis.title   = element_text(size = 28),
+    axis.text.x  = element_text(size = 22, angle = 45, hjust = 1),
+    axis.text.y  = element_text(size = 22),
+    legend.title = element_text(size = 26),
+    legend.text  = element_text(size = 22),
+    strip.text   = element_text(size = 26, face = "bold")
+  ) +
+  guides(fill = guide_colorbar(barheight = 15, barwidth = 1.5)) # ~0.8 cm tall bar
+
+
+print(p)
+
+ggsave("heatmap_multi_year_by_city.png", p, width = 24, height = 18, dpi = 300)
 
 # Time of Day Analysis
 all_delivery_pace_tod <- bind_rows(
@@ -2126,14 +2480,17 @@ city_pace_tod <- all_delivery_pace_tod |> # city-level averages by time of day (
   filter(!is.na(avg_daily_pace_tod)) |>
   group_by(city, tod) |>
   summarise(
-    city_avg_pace_tod = mean(avg_daily_pace_tod, na.rm = TRUE),
-    years_count = n_distinct(year),
-    min_pace = min(avg_daily_pace_tod, na.rm = TRUE),
-    max_pace = max(avg_daily_pace_tod, na.rm = TRUE),
+    avg = mean(avg_daily_pace_tod, na.rm = TRUE),
+    years = n_distinct(year),
+    min = min(avg_daily_pace_tod, na.rm = TRUE),
+    max = max(avg_daily_pace_tod, na.rm = TRUE),
     .groups = "drop"
-  )
-kable(city_pace_tod, format = "simple", caption = "Average Delivery Pace by Time of Day Across All Cities and Years")
-View(city_pace_tod)
+  )|>
+  mutate(across(c(avg, min, max), ~round(.x, 2))) |>   # round to 2 decimals
+  rename(City= city, Time_of_Day = tod, Average = avg, Years = years, Min = min, Max = max)
+
+kable(city_pace_tod, caption = "Average Delivery Pace by Time of Day Across All Cities and Years") 
+
 
 # Day of Week analysis
 
@@ -2158,21 +2515,23 @@ city_pace_dow <- all_delivery_pace_dow |> # city-level averages by time of day (
   filter(!is.na(avg_daily_pace_dow)) |>
   group_by(city, dow) |>
   summarise(
-    city_avg_pace_dow = mean(avg_daily_pace_dow, na.rm = TRUE),
-    years_count = n_distinct(year),
-    min_pace = min(avg_daily_pace_dow, na.rm = TRUE),
-    max_pace = max(avg_daily_pace_dow, na.rm = TRUE),
+    avg = mean(avg_daily_pace_dow, na.rm = TRUE),
+    years = n_distinct(year),
+    min = min(avg_daily_pace_dow, na.rm = TRUE),
+    max = max(avg_daily_pace_dow, na.rm = TRUE),
     .groups = "drop"
-  )
-kable(city_pace_dow, format = "simple", caption = "Average Delivery Pace by Time of Day Across All Cities and Years")
-View(city_pace_dow)
+  ) |>
+  mutate(across(c(avg, min, max), ~round(.x, 2))) |>   # round to 2 decimals
+  rename(City= city, Day_of_Week = dow, Average = avg, Years = years, Min = min, Max = max)
+
+kable(city_pace_dow, caption = "Average Delivery Pace by Day of Week Across All Cities and Years") 
 
 
 
 
 ```
 
-### Makeni 
+### Makeni
 
 #### 2025 Performance
 
@@ -2184,7 +2543,7 @@ Examining the time-of-day performance in 2025, the 12:00–14:00 period emerges 
 
 Since only one year of data is available, the 2025 figures represent Makeni's averages. The combination of day-of-week and time-of-day analysis indicates that Makeni's peak operational capacity is concentrated in early-to-mid-week and midday periods, particularly Tuesday midday hours. The significant drop-off from Tuesday's peak to other weekdays (up to 73% lower on Sunday) suggests potential opportunities for more consistent resource allocation and operational standardization. Without multi-year data, it remains unclear whether these patterns represent stable operational norms or a single-year snapshot that may not reflect longer-term trends.
 
-## Kenema 
+## Kenema
 
 #### 2024 Performance
 
@@ -2206,7 +2565,7 @@ For time-of-day averages, the 12:00–14:00 window averages 20.90 deliveries per
 
 The dramatic year-over-year variations in day-of-week performance (up to 121% increases or 37% decreases) illlustrates a significant operational restructuring from 2024-2025 delivery in Kenema. The relative stability in time-of-day patterns, by contrast, indicates more consistent intra-day scheduling practices even as weekly allocation changes.
 
-## Freetown 
+## Freetown
 
 #### 2021 Performance
 
@@ -2256,31 +2615,87 @@ Mid-week or early-week days generally deliver the highest volume, while Sundays 
 
 The analysis reveals distinct delivery pace profiles across the three cities, with each demonstrating unique strengths and improvement opportunities. Freetown demonstrates the highest average daily deliveries with an average of 59.74 daily deliveries, though it experiences some performance fluctuations that require careful management. Kenema shows the most encouraging improvement trajectory, increasing from 38.83 deliveries in 2024 to 40.15 deliveries in 2025 while significantly reducing day-to-day variability. Makeni maintains stable and predictable performance with 31.28 daily deliveries, providing a solid foundation for sustainable growth. These findings inform targeted recommendations designed to set sustainable daily delivery paces across all three cities in the 2025-2026 fiscal year and beyond.
 
-## Proposed City-Specific Delivery Pace Targets for the 2025–2026 Fiscal Year
+## Proposed City-Specific Delivery Pace Targets for the 2026 Fiscal Year
 
-Targets are established as ranges, providing both lower and upper benchmarks to guide enumerator performance. The minimum threshold functions as a safeguard to ensure consistent productivity across the team, discouraging underperformance and reinforcing accountability. It also serves as a critical reference point for the design of delivery zones, ensuring workloads are distributed fairly and remain manageable for all enumerators. Conversely, the maximum threshold is intended to recognize and reward the contributions of higher-achieving enumerators, while at the same time preventing risks associated with excessive workloads, such as fatigue, mistakes, or declining data quality. This approach strikes a balance between motivating steady improvement, accommodating varying capacities, and maintaining high performance standards without compromising quality.
+```{r}
+#| label: 2026 Delivery Pace Target Setting By City
+#| echo: false
 
-#### Makeni
+cities <- list(
+  Makeni = makeni_2025_unfiltered,
+  Kenema = kcc_2025_unfiltered,
+  Freetown = fcc_2024_unfiltered # use 2024 as baseline
+)
 
-The 2025 unfiltered data for Makeni indicates an average daily delivery pace of 31.68 deliveries per day, establishing the foundation for 2026 target calculations. Given the absence of multi-year historical data for Makeni, Kenema's average annual delivery pace growth rate of 4.49% was used as a proxy metric. This approach is statistically justified given that both cities operate at similar scales and demonstrate comparable performance characteristics, making Kenema's growth pattern a reasonable predictive indicator for Makeni's potential development tra
+growth_rates <- c(Makeni = 0.0449, Kenema = 0.0449, Freetown = 0.0221)
 
-Applying the 4.49% growth adjustment to Makeni's baseline performance yields a projected 2026 baseline target of 33.10 deliveries per day. The high-performance threshold analysis utilizes Makeni's 90th percentile performance level of 48 deliveries per day from 2025 operations. When adjusted for the same growth trajectory, this high-performance threshold projects to 50.16 deliveries per day for 2026 operations.
+targets <- lapply(names(cities), function(city) {
+  df <- cities[[city]]
+  g  <- growth_rates[city]
+  
+  df |> 
+    summarise(
+      mean_daily = mean(daily_avg, na.rm = TRUE),
+      sd_daily   = sd(daily_avg, na.rm = TRUE),
+      n_days     = sum(!is.na(daily_avg)),    
+      ci_lower   = mean_daily - qt(0.975, df = n_days-1) * (sd_daily / sqrt(n_days)),
+      ci_upper   = mean_daily + qt(0.975, df = n_days-1) * (sd_daily / sqrt(n_days)),
+      p90        = quantile(daily_avg, 0.9, na.rm = TRUE),
+      p10        = quantile(daily_avg, 0.1, na.rm = TRUE)
+    ) |> 
+    transmute(
+      City        = city,
+      Year        = 2026,
+      Mean        = mean_daily,
+      SD          = sd_daily,
+      Days        = n_days,
+      CI_Low  = ci_lower * (1 + g),
+      CI_High = ci_upper * (1 + g),
+      High_Perf   = p90 * (1 + g)
+    )
+}) |> bind_rows()
 
-**Recommended 2026 target delivery range: 33-50 deliveries per day.**
+# Render as a nice table 
+kable(targets, 
+      caption = "Recommended 2026 Delivery Pace Targets by City", 
+      digits = 2, 
+      align = "c")
+```
 
-#### Kenema
+### **Proposed City-Specific Delivery Pace Targets for the 2026 Fiscal Year**
 
-Kenema's 2025 unfiltered data has a mean of 40.96 deliveries per day. Projecting forward with the established growth trajectory of 4.49%, Kenema's 2026 baseline target reaches 42.80 deliveries per day. The high-performance threshold analysis begins with Kenema's demonstrated capacity of 51.55 deliveries per day during peak operational periods. Applying the growth adjustment yields a high-performance target of 53.86 deliveries per day.
+Targets are established as ranges, providing both lower and upper benchmarks to guide enumerator performance. The minimum threshold functions as a safeguard to ensure consistent productivity across the team, discouraging underperformance and reinforcing accountability. It also serves as a critical reference point for the design of delivery zones, ensuring workloads are distributed fairly and remain manageable for all enumerators. Conversely, the maximum threshold is intended to recognize and reward the contributions of higher-achieving enumerators while at the same time preventing risks associated with excessive workloads, such as fatigue, mistakes, or declining data quality. This approach strikes a balance between motivating steady improvement, accommodating varying capacities, and maintaining high performance standards without compromising quality.
 
-**Recommended 2026 target delivery range: 43-54 deliveries per day.**
+#### **Makeni**
 
-#### Freetown
+The 2025 unfiltered data for Makeni indicates an average daily delivery pace of **31.68 deliveries per day**, establishing the foundation for 2026 target calculations. Given the absence of multi-year historical data for Makeni, Kenema's average annual delivery pace growth rate of **4.49%** was used as a proxy metric.
 
-Freetown's delivery operations represent the most established and highest-capacity center among the three locations, with 2024 baseline performance averaging 66.48 deliveries per day. The city's multi-year performance analysis yields a conservative annual growth rate of 2.21%, reflecting the mature nature of operations and the challenges associated with scaling already high-volume activities. Applying Freetown's growth trajectory projects a 2026 baseline target of 69.41 deliveries per day. High-performance threshold analysis utilizes Freetown's demonstrated peak capacity of 78.38 deliveries per day in 2024, representing the city's ability to handle exceptional demand periods. With growth adjustments applied, the high-performance target for 2026 reaches 81.90 deliveries per day, establishing an ambitious but achievable ceiling for exceptional performance.
+-   **Projected 2026 baseline target:** 33.10 deliveries per day
+-   **95% Confidence Interval (CI):** 30.85 – 35.31 deliveries
+-   **High-performance threshold (90th percentile):** 50.16 deliveries
 
-\*Note: 2024 is used as a baseline for Freetown given the data anomalies of the 2025 Freetown data.
+**Recommended 2026 delivery range:** **33 (CI 30.8–35.3) – 50 deliveries per day.**
 
-**Recommended 2026 target delivery range: 69-82 deliveries per day.**
+#### **Kenema**
+
+Kenema's 2025 unfiltered data has a mean of **40.96 deliveries per day**. Projecting forward with the established growth trajectory of **4.49%**, Kenema's 2026 baseline target reaches **42.80 deliveries per day**.
+
+-    **95% CI for baseline:** 40.50 – 45.20 deliveries
+-   **High-performance threshold (90th percentile):** 53.86 deliveries.
+
+**Recommended 2026 delivery range:** **43 (CI 40.5–45.2) – 54 deliveries per day**
+
+#### **Freetown**
+
+Freetown's delivery operations represent the most established and highest-capacity center among the three locations, with 2024 baseline performance averaging **66.48 deliveries per day**. The city's multi-year performance analysis yields a conservative annual growth rate of **2.21%**, reflecting the mature nature of operations and the challenges associated with scaling already high-volume activities.
+
+-   **Projected 2026 baseline target:** 67.95 deliveries per day
+-    **95% CI:** 64.42 – 71.48 deliveries
+-   **High-performance threshold (90th percentile):** 80.11 deliveries.
+
+**Recommended 2026 delivery range:** **68 (CI 66.0–72.0) – 80 deliveries per day**
+
+*Note: 2024 is used as a baseline for Freetown given the anomalies in the 2025 data.*
 
 ## Policy Considerations For Future Delivery Pace Target Setting
 
@@ -2294,8 +2709,13 @@ Importantly, there will come a point where adopting a **fixed delivery pace targ
 #### Indicators for Maintaining a Fixed Rate
 
 -   If year-to-year growth levels off and significant gains are no longer observed, maintaining a fixed baseline may be more meaningful than ongoing adjustments.
+
 -   If filtered and unfiltered data show minimal divergence, indicating fewer outliers and a stable system, a fixed target can help consolidate consistent performance.
+
 -   If year-over-year increases in average daily delivery pace fall below 2%.
+
 -   If delivery pace distributions stabilize, with little upward movement in median or peak values.
+
 -   If signs of operational strain emerge (e.g., rising error rates, absenteeism, or delays).
+
 -   If staff consistently meet but do not exceed targets despite additional training or support.

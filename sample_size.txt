@@ -1,0 +1,14 @@
+
+
+Table: Sample Size
+
+City        Year   Total_Deliveries   Number_of_Enumerators
+---------  -----  -----------------  ----------------------
+Makeni      2025              19493                      42
+Freetown    2021             105998                      63
+Freetown    2022             104132                      63
+Freetown    2023             126104                      64
+Freetown    2024             126100                      63
+Freetown    2025              96454                      63
+Kenema      2024              26798                      62
+Kenema      2025              29839                      30
