@@ -22,6 +22,7 @@ library(skimr)
 library(ggthemes)
 library(knitr)
 library(glue)
+library(kableExtra)
 
 ```
 
@@ -2130,6 +2131,8 @@ This section evaluates how filtering for accurate deliveries affects the average
 ```{r, fig.width=20, fig.height=12, dpi=300}
 #| label: Combined Analysis - Filtered vs Unfiltered
 #| echo: false
+#| warning: false
+#| message: false
 
 # Adding city & year to unfiltered datasets
 makeni_2025_unfiltered   <- mcc_2025_unfiltered   |> mutate(city = "Makeni", year = 2025, dataset = "Unfiltered")
@@ -2185,33 +2188,22 @@ summary_all_table <- summary_all |> # making a nicer table for pdf output
   ) |>
   select(City = city, Year = year, Dataset = dataset, Mean, SD, Median, P80, P90)
 
-kable(summary_all_table, caption = "Summary of Daily Deliveries by City, Year, and Dataset", digits = 2)
-
+knitr::kable(
+  summary_all_table,
+  caption = "Summary of Daily Deliveries by City, Year, and Dataset",
+  digits = 2,
+  booktabs = TRUE,
+  longtable = FALSE,
+  format = "latex"
+) |>
+  kableExtra::kable_styling(
+    latex_options = c("HOLD_position", "striped"),
+    font_size = 9
+  ) 
 
 # Visualizations
-# (a) Summary bar chart
-summary_all |>
-  ggplot(aes(x = factor(year), y = mean_daily, fill = dataset)) +
-  geom_col(position = "dodge") +
-  facet_wrap(~city) +
-  labs(
-    title = "Average Daily Deliveries: Filtered vs Unfiltered",
-    x = "Year",
-    y = "Mean Deliveries per Day",
-    fill = "Dataset Type"
-  ) +
-  theme_minimal(base_size = 20) +  # <-- sets global text size
-  theme(
-    plot.title = element_text(size = 30, face = "bold"),
-    axis.title = element_text(size = 26),
-    axis.text  = element_text(size = 22),
-    legend.title = element_text(size = 26),
-    legend.text  = element_text(size = 22),
-    strip.text = element_text(size = 20, face = "bold")
-  )
-ggsave("filtered_vs_unfiltered_all_cities_bar.png", width = 16, height = 10, dpi = 300)
 
-# (b) Distribution: filtered vs unfiltered
+# (a) Distribution: filtered vs unfiltered
 all_deliveries |>
   ggplot(aes(x = daily_avg, fill = dataset)) +
   geom_histogram(aes(y = after_stat(density)), bins = 20, alpha = 0.5, position = "identity") +
@@ -2235,7 +2227,7 @@ all_deliveries |>
   )
 ggsave("filtered_vs_unfiltered_all_cities_distribution.png", width = 30, height = 24, dpi = 300)
 
-# --- Year-over-year growth visualization: filtered vs. unfiltered ---
+# (b) Year-over-year growth visualization: filtered vs. unfiltered
 
 
 summary_change <- summary_all |> # adding year-over-year % changes in average daily deliveries (ignores NAs for first year)
@@ -2253,8 +2245,6 @@ summary_change_table <- summary_change |> # making nicer table for pdf output
     Percentage_Change  = round(pct_change, 2)
   ) |>
   select(City = city, Year = year, Dataset = dataset, Mean, Percentage_Change)
-
-kable(summary_change_table, caption = "Year-Over-Year Change in Average Daily Deliveries", digits = 2)
 
 
 
@@ -2341,6 +2331,83 @@ This section analyzes average delivery pace by **day of week** and **time of day
 ```{r, fig.width=24, fig.height=18, dpi=300}
 #| label: Combined Analysis - Time and Day Patterns
 #| echo: false
+#| warning: false
+#| message: false
+
+# Time of Day Analysis
+all_delivery_pace_tod <- bind_rows(
+  fcc_2021_delivery_pace_tod|> mutate(city = "Freetown", year = 2021),
+  fcc_2022_delivery_pace_tod |> mutate(city = "Freetown", year = 2022),
+  fcc_2023_delivery_pace_tod |> mutate(city = "Freetown", year = 2023),
+  fcc_2024_delivery_pace_tod |> mutate(city = "Freetown", year = 2024),
+  fcc_2025_delivery_pace_tod |> mutate(city = "Freetown", year = 2025),
+  kcc_2024_delivery_pace_tod |> mutate(city = "Kenema", year = 2024),
+  kcc_2025_delivery_pace_tod |> mutate(city = "Kenema", year = 2025),
+  mcc_2025_delivery_pace_tod |> mutate(city = "Makeni", year = 2025)
+)
+
+detailed_pace_tod <- all_delivery_pace_tod |> # detailed averages of time of day by city and year
+  filter(!is.na(avg_daily_pace_tod)) |>
+  select(city, year, tod, avg_daily_pace_tod) |>
+  arrange(city, year, tod)
+
+city_pace_tod <- all_delivery_pace_tod |> # city-level averages by time of day (across years for each city)
+  filter(!is.na(avg_daily_pace_tod)) |>
+  group_by(city, tod) |>
+  summarise(
+    avg = mean(avg_daily_pace_tod, na.rm = TRUE),
+    years = n_distinct(year),
+    min = min(avg_daily_pace_tod, na.rm = TRUE),
+    max = max(avg_daily_pace_tod, na.rm = TRUE),
+    .groups = "drop"
+  )|>
+  mutate(across(c(avg, min, max), ~round(.x, 2))) |>   # round to 2 decimals
+  rename(City= city, Time_of_Day = tod, Average = avg, Years = years, Min = min, Max = max)
+
+knitr::kable(city_pace_tod, 
+             caption = "Average Delivery Pace by Time of Day Across All Cities and Years",
+             digits = 2, booktabs = TRUE, longtable = FALSE,
+             format = "latex") |>
+  kableExtra::kable_styling(latex_options = c("HOLD_position", "scale_down"))
+
+
+# Day of Week analysis
+
+all_delivery_pace_dow <- bind_rows(
+  fcc_2021_delivery_pace_dow|> mutate(city = "Freetown", year = 2021),
+  fcc_2022_delivery_pace_dow |> mutate(city = "Freetown", year = 2022),
+  fcc_2023_delivery_pace_dow |> mutate(city = "Freetown", year = 2023),
+  fcc_2024_delivery_pace_dow |> mutate(city = "Freetown", year = 2024),
+  fcc_2025_delivery_pace_dow |> mutate(city = "Freetown", year = 2025),
+  kcc_2024_delivery_pace_dow |> mutate(city = "Kenema", year = 2024),
+  kcc_2025_delivery_pace_dow |> mutate(city = "Kenema", year = 2025),
+  mcc_2025_delivery_pace_dow |> mutate(city = "Makeni", year = 2025)
+)
+
+
+detailed_pace_dow <- all_delivery_pace_dow |> # detailed averages of time of day by city and year
+  filter(!is.na(avg_daily_pace_dow)) |>
+  select(city, year, dow, avg_daily_pace_dow) |>
+  arrange(city, year, dow)
+
+city_pace_dow <- all_delivery_pace_dow |> # city-level averages by time of day (across years for each city)
+  filter(!is.na(avg_daily_pace_dow)) |>
+  group_by(city, dow) |>
+  summarise(
+    avg = mean(avg_daily_pace_dow, na.rm = TRUE),
+    years = n_distinct(year),
+    min = min(avg_daily_pace_dow, na.rm = TRUE),
+    max = max(avg_daily_pace_dow, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(across(c(avg, min, max), ~round(.x, 2))) |>   # round to 2 decimals
+  rename(City= city, Day_of_Week = dow, Average = avg, Years = years, Min = min, Max = max) 
+
+knitr::kable(city_pace_dow, 
+             caption = "Average Delivery Pace by Day of Week Across All Cities and Years",
+             digits = 2, booktabs = TRUE, longtable = FALSE,
+             format = "latex") |>
+  kableExtra::kable_styling(latex_options = c("HOLD_position", "scale_down"))
 
 # Visualization: Delivery pace by day of week and time of day (all cities, all years)
 
@@ -2354,32 +2421,6 @@ all_delivery_pace_tod_dow <- bind_rows(
   kcc_2025_delivery_pace_tod_dow |> mutate(city = "Kenema", year = 2025),
   mcc_2025_delivery_pace_tod_dow |> mutate(city = "Makeni", year = 2025)
 )
-
-all_delivery_pace_tod_dow |> 
-  ggplot(aes(x = dow, y = avg_daily_pace_tod_dow, fill = tod)) +
-  geom_col(position = "dodge") +
-  facet_grid(city ~ year) +
-  scale_x_discrete(labels = c("Mon","Tue","Wed","Thu","Fri","Sat","Sun")) +
-  labs(
-    title = "Delivery Pace by Day of Week & Time of Day (All Cities, All Years)",
-    x = "Day of the Week",
-    y = "Average Deliveries per Enumerator",
-    fill = "Time of Day (3-hour brackets)"
-  ) +
-  theme_minimal(base_size = 22) +  
-  theme(
-    plot.title   = element_text(size = 34, face = "bold"),   
-    axis.title   = element_text(size = 26),
-    axis.text.x  = element_text(size = 20, angle = 45, hjust = 1),
-    axis.text.y  = element_text(size = 20),
-    legend.title = element_text(size = 24),
-    legend.text  = element_text(size = 20),
-    strip.text   = element_text(size = 24, face = "bold")    
-  ) +
-  guides(fill = guide_legend(keywidth = 1.5, keyheight = 3))  
-
-ggsave("tod_dow_all_cities_bar.png", width = 24, height = 18, dpi = 300)
-
 
 # --- Heatmap of performance by day/time by city (year specific)- Robin ---
 
@@ -2458,76 +2499,6 @@ p <- city_avg |>
 print(p)
 
 ggsave("heatmap_multi_year_by_city.png", p, width = 24, height = 18, dpi = 300)
-
-# Time of Day Analysis
-all_delivery_pace_tod <- bind_rows(
-  fcc_2021_delivery_pace_tod|> mutate(city = "Freetown", year = 2021),
-  fcc_2022_delivery_pace_tod |> mutate(city = "Freetown", year = 2022),
-  fcc_2023_delivery_pace_tod |> mutate(city = "Freetown", year = 2023),
-  fcc_2024_delivery_pace_tod |> mutate(city = "Freetown", year = 2024),
-  fcc_2025_delivery_pace_tod |> mutate(city = "Freetown", year = 2025),
-  kcc_2024_delivery_pace_tod |> mutate(city = "Kenema", year = 2024),
-  kcc_2025_delivery_pace_tod |> mutate(city = "Kenema", year = 2025),
-  mcc_2025_delivery_pace_tod |> mutate(city = "Makeni", year = 2025)
-)
-
-detailed_pace_tod <- all_delivery_pace_tod |> # detailed averages of time of day by city and year
-  filter(!is.na(avg_daily_pace_tod)) |>
-  select(city, year, tod, avg_daily_pace_tod) |>
-  arrange(city, year, tod)
-
-city_pace_tod <- all_delivery_pace_tod |> # city-level averages by time of day (across years for each city)
-  filter(!is.na(avg_daily_pace_tod)) |>
-  group_by(city, tod) |>
-  summarise(
-    avg = mean(avg_daily_pace_tod, na.rm = TRUE),
-    years = n_distinct(year),
-    min = min(avg_daily_pace_tod, na.rm = TRUE),
-    max = max(avg_daily_pace_tod, na.rm = TRUE),
-    .groups = "drop"
-  )|>
-  mutate(across(c(avg, min, max), ~round(.x, 2))) |>   # round to 2 decimals
-  rename(City= city, Time_of_Day = tod, Average = avg, Years = years, Min = min, Max = max)
-
-kable(city_pace_tod, caption = "Average Delivery Pace by Time of Day Across All Cities and Years") 
-
-
-# Day of Week analysis
-
-all_delivery_pace_dow <- bind_rows(
-  fcc_2021_delivery_pace_dow|> mutate(city = "Freetown", year = 2021),
-  fcc_2022_delivery_pace_dow |> mutate(city = "Freetown", year = 2022),
-  fcc_2023_delivery_pace_dow |> mutate(city = "Freetown", year = 2023),
-  fcc_2024_delivery_pace_dow |> mutate(city = "Freetown", year = 2024),
-  fcc_2025_delivery_pace_dow |> mutate(city = "Freetown", year = 2025),
-  kcc_2024_delivery_pace_dow |> mutate(city = "Kenema", year = 2024),
-  kcc_2025_delivery_pace_dow |> mutate(city = "Kenema", year = 2025),
-  mcc_2025_delivery_pace_dow |> mutate(city = "Makeni", year = 2025)
-)
-
-
-detailed_pace_dow <- all_delivery_pace_dow |> # detailed averages of time of day by city and year
-  filter(!is.na(avg_daily_pace_dow)) |>
-  select(city, year, dow, avg_daily_pace_dow) |>
-  arrange(city, year, dow)
-
-city_pace_dow <- all_delivery_pace_dow |> # city-level averages by time of day (across years for each city)
-  filter(!is.na(avg_daily_pace_dow)) |>
-  group_by(city, dow) |>
-  summarise(
-    avg = mean(avg_daily_pace_dow, na.rm = TRUE),
-    years = n_distinct(year),
-    min = min(avg_daily_pace_dow, na.rm = TRUE),
-    max = max(avg_daily_pace_dow, na.rm = TRUE),
-    .groups = "drop"
-  ) |>
-  mutate(across(c(avg, min, max), ~round(.x, 2))) |>   # round to 2 decimals
-  rename(City= city, Day_of_Week = dow, Average = avg, Years = years, Min = min, Max = max)
-
-kable(city_pace_dow, caption = "Average Delivery Pace by Day of Week Across All Cities and Years") 
-
-
-
 
 ```
 
@@ -2646,7 +2617,8 @@ targets <- lapply(names(cities), function(city) {
     transmute(
       City        = city,
       Year        = 2026,
-      Mean        = mean_daily,
+      Baseline_Mean = mean_daily,
+      Projected_Mean = mean_daily * (1 + g), 
       SD          = sd_daily,
       Days        = n_days,
       CI_Low  = ci_lower * (1 + g),
@@ -2656,10 +2628,12 @@ targets <- lapply(names(cities), function(city) {
 }) |> bind_rows()
 
 # Render as a nice table 
-kable(targets, 
-      caption = "Recommended 2026 Delivery Pace Targets by City", 
-      digits = 2, 
-      align = "c")
+knitr::kable(targets, 
+             caption = "Recommended 2026 Delivery Pace Targets Setting by City",
+             digits = 2, booktabs = TRUE, longtable = FALSE,
+             format = "latex") |>
+  kableExtra::kable_styling(latex_options = c("HOLD_position", "scale_down"))
+
 ```
 
 ### **Proposed City-Specific Delivery Pace Targets for the 2026 Fiscal Year**
@@ -2671,29 +2645,29 @@ Targets are established as ranges, providing both lower and upper benchmarks to 
 The 2025 unfiltered data for Makeni indicates an average daily delivery pace of **31.68 deliveries per day**, establishing the foundation for 2026 target calculations. Given the absence of multi-year historical data for Makeni, Kenema's average annual delivery pace growth rate of **4.49%** was used as a proxy metric.
 
 -   **Projected 2026 baseline target:** 33.10 deliveries per day
--   **95% Confidence Interval (CI):** 30.85 – 35.31 deliveries
+-   **95% Confidence Interval (CI):** 24.83 – 41.37 deliveries
 -   **High-performance threshold (90th percentile):** 50.16 deliveries
 
-**Recommended 2026 delivery range:** **33 (CI 30.8–35.3) – 50 deliveries per day.**
+**Recommended 2026 delivery range:** **33 – 50 deliveries per day.**
 
 #### **Kenema**
 
 Kenema's 2025 unfiltered data has a mean of **40.96 deliveries per day**. Projecting forward with the established growth trajectory of **4.49%**, Kenema's 2026 baseline target reaches **42.80 deliveries per day**.
 
--    **95% CI for baseline:** 40.50 – 45.20 deliveries
+-   **95% CI for baseline:** 39.78 – 45.83 deliveries
 -   **High-performance threshold (90th percentile):** 53.86 deliveries.
 
-**Recommended 2026 delivery range:** **43 (CI 40.5–45.2) – 54 deliveries per day**
+**Recommended 2026 delivery range:** **43 – 54 deliveries per day**
 
 #### **Freetown**
 
 Freetown's delivery operations represent the most established and highest-capacity center among the three locations, with 2024 baseline performance averaging **66.48 deliveries per day**. The city's multi-year performance analysis yields a conservative annual growth rate of **2.21%**, reflecting the mature nature of operations and the challenges associated with scaling already high-volume activities.
 
 -   **Projected 2026 baseline target:** 67.95 deliveries per day
--    **95% CI:** 64.42 – 71.48 deliveries
+-   **95% CI:** 64.42 – 71.48 deliveries
 -   **High-performance threshold (90th percentile):** 80.11 deliveries.
 
-**Recommended 2026 delivery range:** **68 (CI 66.0–72.0) – 80 deliveries per day**
+**Recommended 2026 delivery range:** **68 – 80 deliveries per day**
 
 *Note: 2024 is used as a baseline for Freetown given the anomalies in the 2025 data.*
 
