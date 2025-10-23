@@ -44,9 +44,7 @@ To determine a realistic and accurate daily delivery pace to set for each city�
 -   Mid-week days demonstrate highest delivery volumes.
 -   Filtering for delivery accuracy has minimal impact on performance metrics.
 
-## Policy Recommendations
-
-#### 2026 Daily Delivery Targets
+#### Policy Recommendations: 2026 Daily Targets
 
 Targets are set as ranges, with a minimum to sustain productivity and a maximum to reward high achievers without compromising performance quality.
 
@@ -62,15 +60,25 @@ Targets are set as ranges, with a minimum to sustain productivity and a maximum 
 
 # **Methodology**
 
+Firstly, it is important to note that in this analysis, a delivery is counted as a document rather than a property. Experience has shown that a more reliable measure of delivery pace is the number of documents delivered, rather than properties visited. Delivering a Business License in a multi-use property often requires separate interactions with different business employees or owners, each taking roughly the same amount of time and effectively constituting separate deliveries. This is particularly relevant for commercial buildings housing multiple businesses. Additionally, each commercial, domestic, or government RDN is treated as a separate delivery.
+
+While there are arguments both for and against this approach, it was adopted for two main reasons: 1) simplicity and consistency, as counting each document provides a clear and uniform methodology. Although this is slightly less precise for multi-use properties, they represent a small proportion of the total, so the simplicity advantage outweighs combining them; 2) practical field considerations, since delivery staff may need to interact with different recipients at each portion of a multi-use property, effectively creating multiple deliveries rather than one.
+
 The datasets used for this analysis were obtained in CSV format. They include: mcc_2025, kcc_2024, kcc_2025, fcc_2021_team_1-3, fcc_2021_team_1-3, fcc_2021_team_4-6, fcc_2022_team_1-3, fcc_2022_team_4-6, fcc_2023_team_1-3, fcc_2023_team_4-6, fcc_2024_internal_staff, fcc_2024_team_1-3,fcc_2024_team_4-6, fcc_2025_rnd1_team_1-3, and fcc_2025_rnd1_team_4-6.
 
 To establish reliable delivery pace benchmarks, the following procedures were applied systematically to each city and year of data:
 
 1.  **Comparing Filtered vs. Unfiltered Data:** To understand how accuracy filtering affected the number of daily deliveries enumerators completed.
-    -   For comparison purposes, two subdatasets were created from the initial dataset—an unfiltered version containing all recorded deliveries and a filtered version restricted to accurate deliveries. Deliveries were classified as accurate if they occurred within 80 meters of the assigned property. This threshold served as a proxy for correct and successfully completed deliveries.
+    -   For comparison purposes, two subdatasets were created from the initial dataset—an unfiltered version containing all recorded deliveries and a filtered version restricted to accurate deliveries. Deliveries were classified as accurate if they occurred within 80 meters of the assigned property. This 80-meter threshold was used as a practical proxy for correctly completed deliveries, recognizing that in some cases — such as large compounds or business premises — the point where an enumerator typically records their location (at the entrance, without entering private property) can be up to 80 meters from the actual structure (see image below).
+
+        ![](images/clipboard-3309785353.png)
+
     -   The data sets were then grouped by enumerator and date to determine the number of total and accurate deliveries each enumerator completed per day.
+
     -   To ensure results reflected typical working days, extreme values were removed using the Interquartile Range (IQR) method. This prevented unusually high or low delivery counts from skewing the analysis.
+
     -   After cleaning, descriptive statistics were calculated, including the mean, median, standard deviation, interquartile range, and benchmarks at the 80th and 90th percentiles. These provided a balanced picture of typical and high-end performance.
+
     -   Key indicators from the filtered and unfiltered datasets were compared directly. Percentage differences between the two revealed the extent to which accuracy filtering influenced daily delivery averages.
 2.  **Temporal Analysis:** To understand **when** enumerators were most productive, deliveries were examined across different timeframes:
     -   **By time of Day:** Deliveries were categorized into three-hour intervals to pinpoint peak working hours.
@@ -2312,9 +2320,9 @@ The distribution analysis shows that Kenema exhibits a substantial transformatio
 
 In Freetown, analysis across multiple years demonstrates both growth and fluctuations in operational performance. The mean daily deliveries in filtered dataset were 56.41 in 2021, 51.04 in 2022, 59.08 in 2023, 64.35 in 2024, and 59.74 in 2025. In unfiltered dataset, the mean deliveries were slightly higher each year, ranging from 59.67 in 2021 to 64.30 in 2025. The median and high-performance thresholds followed similar trends, reflecting growing peak capacity over time.
 
-The year-over-year performance changes provide additional insight. In the filtered dataset, Freetown experienced a decrease of 9.52% from 2021 to 2022, followed by strong growth of 15.75% in 2022–2023 and 8.93% in 2023–2024, before declining 7.17% in 2024–2025. Unfiltered data shows a similar patter with slightly smaller fluctuations, with increases of 12.77% from 2022–2023 and 7.11% from 2023–2024, followed by a decrease of 3.28% in 2024–2025. The average annual change rates indicate gradual long-term growth, with 1.997% for filtered data and 2.212% for unfiltered data.
+The year-over-year performance changes provide additional insight. In the filtered dataset, Freetown experienced a decrease of 9.52% from 2021 to 2022, followed by strong growth of 15.75% in 2022–2023 and 8.93% in 2023–2024, before declining 7.17% in 2024–2025. Unfiltered data shows a similar patter with slightly smaller fluctuations, with increases of 12.77% from 2022–2023 and 7.11% from 2023–2024, followed by a decrease of 3.28% in 2024–2025. The 2025 decline in both datasets may reflect the fact that only Round 1 of FCC’s delivery was included, during which most commercial properties and business licenses were excluded. This likely slowed progress by limiting delivery opportunities for mixed-use buildings where multiple deliveries are usually made, and by potentially increasing travel distances as enumerators had to pass commercial areas without making deliveries. The average annual change rates indicate gradual long-term growth, with 1.997% for filtered data and 2.212% for unfiltered data.
 
-These results indicate that, while daily averages fluctuate, Freetown has achieved a general upward trend in operational capacity over the years. Filtering reduces the impact of anomalies on the data but does not materially change the observed trends, suggesting that the improvements and declines reflect true operational performance rather than delivery errors.
+The results indicate that, while daily averages fluctuate, Freetown has achieved a general upward trend in operational capacity over the years. Filtering reduces the impact of anomalies on the data but does not materially change the observed trends, suggesting that the improvements and declines reflect true operational performance rather than delivery errors.
 
 Freetown demonstrates consistently high delivery volumes and generally normal distribution shapes across all years. The distributions were predominantly single-peaked and normal, with minor right skew in 2021. Filtered and unfiltered dataset closely overlapped in all years, though small differences in tail regions. Year-over-year, Freetown shows clear distribution evolution. In 2021–2022, the distribution shifted slightly left, reflecting a modest decrease in performance. From 2022–2025, distributions shifted gradually rightward, demonstrating improvements in daily delivery performance, with peak activity consistently concentrated in 45–75 deliveries. The mode consistently aligns with the mean, confirming symmetric, normal distributions, and standard deviations remained moderate, supporting predictable delivery patterns.
 
